@@ -88,14 +88,64 @@
     }
     function initChronograph() { updateChrono(); setInterval(updateChrono, 1000); }
 
-    // 图像探测
+    // 图像探测 — 无照片时生成抽象星空艺术画
+    function generateCosmicArt(index) {
+        const c = document.createElement('canvas');
+        c.width = 400; c.height = 500;
+        const cx = c.getContext('2d');
+        // 深空背景
+        const bgGrad = cx.createRadialGradient(200 + (index%5-2)*40, 200 + (index%3-1)*60, 20, 200, 250, 400);
+        const hues = [280, 320, 30, 200, 340, 45, 260, 15];
+        const h = hues[index % hues.length];
+        bgGrad.addColorStop(0, `hsla(${h}, 70%, 25%, 0.9)`);
+        bgGrad.addColorStop(0.4, `hsla(${(h+40)%360}, 40%, 15%, 0.7)`);
+        bgGrad.addColorStop(1, '#07070f');
+        cx.fillStyle = bgGrad; cx.fillRect(0, 0, 400, 500);
+        // 星云纹理
+        for (let i = 0; i < 300; i++) {
+            const sx = Math.random() * 400, sy = Math.random() * 500;
+            cx.beginPath(); cx.arc(sx, sy, Math.random() * 3 + 0.5, 0, Math.PI * 2);
+            cx.fillStyle = `hsla(${h + Math.random()*60 - 30}, 60%, ${60 + Math.random()*30}%, ${Math.random() * 0.4})`;
+            cx.fill();
+        }
+        // 主星
+        const gx = 200 + (Math.sin(index * 1.7) * 80), gy = 200 + (Math.cos(index * 2.1) * 100);
+        const glow = cx.createRadialGradient(gx, gy, 0, gx, gy, 120);
+        glow.addColorStop(0, `hsla(${h}, 80%, 80%, 0.9)`);
+        glow.addColorStop(0.3, `hsla(${h}, 70%, 50%, 0.4)`);
+        glow.addColorStop(1, 'transparent');
+        cx.fillStyle = glow; cx.beginPath(); cx.arc(gx, gy, 120, 0, Math.PI*2); cx.fill();
+        // 光晕环
+        cx.strokeStyle = `hsla(${h}, 70%, 70%, 0.3)`; cx.lineWidth = 0.5;
+        cx.beginPath(); cx.arc(gx, gy, 80 + (index%3)*15, 0, Math.PI*2); cx.stroke();
+        cx.beginPath(); cx.arc(gx, gy, 50 + (index%5)*10, 0, Math.PI*2); cx.stroke();
+        return c.toDataURL('image/jpeg', 0.85);
+    }
+
     async function initGallery() {
-        const grid = document.getElementById('gallery-grid'); let index = 1;
+        const grid = document.getElementById('gallery-grid');
+        let index = 1, hasRealPhotos = false;
+
+        // 先尝试真实照片
         while (index <= 100) {
             const src = `images/${index}.jpg`;
-            try { await loadImage(src); const item = createGalleryItem(src, index); grid.appendChild(item); index++; } catch (e) { break; }
+            try {
+                await loadImage(src);
+                const item = createGalleryItem(src, index);
+                grid.appendChild(item);
+                hasRealPhotos = true;
+                index++;
+            } catch (e) { break; }
         }
-        if (grid.children.length === 0) grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:rgba(180,150,200,0.5);">在 images/ 目录下放入 1.jpg, 2.jpg ... 照片会自动展示</p>';
+
+        // 没有真实照片则生成 12 张抽象星云图
+        if (!hasRealPhotos) {
+            for (let i = 0; i < 12; i++) {
+                const dataUrl = generateCosmicArt(i);
+                const item = createGalleryItem(dataUrl, i + 1);
+                grid.appendChild(item);
+            }
+        }
     }
     function loadImage(src) { return new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('Not found')); img.src = src; }); }
     function createGalleryItem(src, index) { const div = document.createElement('div'); div.className = 'gallery-item glass-card'; const img = document.createElement('img'); img.src = src; img.alt = `Memory ${index}`; img.loading = 'lazy'; div.appendChild(img); div.addEventListener('click', () => openLightbox(src)); return div; }
@@ -110,7 +160,7 @@
     // 音乐 — Web Audio 生成式星空氛围乐
     const musicBtn = document.getElementById('music-btn'), waveBars = document.querySelectorAll('.wave-bar');
     let audioCtx, isPlaying = false;
-    let masterGain, ambientNodes = [];
+    let masterGain;
 
     // 和弦进行：Fmaj7 → Am7 → Dm7 → G7 (温柔梦幻)
     const chordProgression = [
@@ -225,47 +275,48 @@
         return { osc1, osc2, gain, filter };
     }
 
-    let chordIndex = 0, chordTimeout;
+    let chordIndex = 0, chordTimeout, currentChordNodes = [], oldChordNodes = [];
     function cycleChords() {
         if (!isPlaying) return;
         const chord = chordProgression[chordIndex % chordProgression.length];
 
-        // 清理旧弦
-        ambientNodes.forEach(n => {
-            if (n.osc && n.gain) { n.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5); }
+        // 标记旧节点待清理
+        oldChordNodes = currentChordNodes;
+        oldChordNodes.forEach(n => {
+            try { if (n.gain) n.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5); } catch(e) {}
         });
-        setTimeout(() => {
-            ambientNodes.forEach(n => {
-                try { n.osc && n.osc.stop(); n.lfo && n.lfo.stop(); } catch(e) {}
-            });
-            ambientNodes = [];
-        }, 2000);
 
-        // 新和弦
-        ambientNodes = chord.flatMap(f => [
+        // 新和弦 — 存入独立数组避免竞态
+        currentChordNodes = chord.flatMap(f => [
             createPadVoice(f, 0, 'sine'),
             createPadVoice(f / 2, 7 + Math.random() * 5, 'triangle'),
             createPadVoice(f * 2, -5, 'sine'),
         ]);
 
-        // 淡入
-        ambientNodes.forEach(n => {
-            if (n.gain) {
-                n.gain.gain.setValueAtTime(0, audioCtx.currentTime);
-                n.gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 2);
-            }
+        // 淡入新和弦
+        currentChordNodes.forEach(n => {
+            try { if (n.gain) { n.gain.gain.setValueAtTime(0, audioCtx.currentTime); n.gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 2); } } catch(e) {}
         });
+
+        // 延迟清理旧节点
+        setTimeout(() => {
+            oldChordNodes.forEach(n => {
+                try { n.osc && n.osc.stop(); n.lfo && n.lfo.stop(); } catch(e) {}
+            });
+            oldChordNodes = [];
+        }, 2000);
 
         // 星尘随和弦切换洒落
         for (let i = 0; i < 3; i++) {
             setTimeout(() => {
+                if (!isPlaying) return;
                 const sparkFreq = chord[Math.floor(Math.random() * chord.length)] * (2 + Math.random() * 4);
                 createSparkle(sparkFreq);
             }, i * 600 + Math.random() * 400);
         }
 
         chordIndex++;
-        chordTimeout = setTimeout(cycleChords, 12000 + Math.random() * 4000);  // 12-16s 切换
+        chordTimeout = setTimeout(cycleChords, 12000 + Math.random() * 4000);
     }
 
     // 撒星尘
@@ -284,14 +335,15 @@
             if (isPlaying) {
                 // 停止
                 masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2);
-                ambientNodes.forEach(n => { try { n.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5); } catch(e) {} });
+                const allNodes = [...currentChordNodes, ...oldChordNodes];
+                allNodes.forEach(n => { try { if (n.gain) n.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5); } catch(e) {} });
                 clearTimeout(chordTimeout);
                 clearInterval(sparkleInterval);
                 waveBars.forEach(b => b.classList.remove('playing'));
                 isPlaying = false;
                 setTimeout(() => {
-                    ambientNodes.forEach(n => { try { n.osc && n.osc.stop(); n.lfo && n.lfo.stop(); } catch(e) {} });
-                    ambientNodes = [];
+                    allNodes.forEach(n => { try { n.osc && n.osc.stop(); n.lfo && n.lfo.stop(); } catch(e) {} });
+                    currentChordNodes = []; oldChordNodes = [];
                 }, 2500);
             } else {
                 // 播放
