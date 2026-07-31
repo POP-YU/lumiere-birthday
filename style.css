@@ -22,6 +22,7 @@
 .music-capsule{position:fixed;top:2rem;right:2rem;z-index:200}
 .music-btn{background:rgba(15,15,30,.6);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:.5px solid rgba(212,175,135,.3);border-radius:50px;padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;transition:all .4s ease;color:#d4af87}
 .music-btn:hover{border-color:rgba(212,175,135,.6);box-shadow:0 0 20px rgba(212,175,135,.2)}
+.music-tooltip{font-size:.6rem;color:rgba(180,150,210,.5);letter-spacing:.15em;white-space:nowrap}
 .wave-bars{display:flex;align-items:flex-end;gap:2px;height:16px}
 .wave-bar{width:2px;background:#d4af87;border-radius:1px;transition:height .2s ease;height:4px}
 .wave-bar.playing{animation:waveAnim 1.2s ease-in-out infinite}

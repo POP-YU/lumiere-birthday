@@ -107,15 +107,208 @@
     document.getElementById('lightbox-bg').addEventListener('click', () => { lightbox.classList.remove('active'); document.body.style.overflow = ''; });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { lightbox.classList.remove('active'); document.body.style.overflow = ''; } });
 
-    // 音乐
-    const audio = document.getElementById('bgm-audio'), musicBtn = document.getElementById('music-btn'), waveBars = document.querySelectorAll('.wave-bar');
-    let isPlaying = false;
-    function initAudio() { audio.volume = 0.3; musicBtn.addEventListener('click', () => { if (isPlaying) { audio.pause(); waveBars.forEach(b => b.classList.remove('playing')); isPlaying = false; } else { audio.play().then(() => { waveBars.forEach(b => b.classList.add('playing')); isPlaying = true; }).catch(() => {}); } }); }
+    // 音乐 — Web Audio 生成式星空氛围乐
+    const musicBtn = document.getElementById('music-btn'), waveBars = document.querySelectorAll('.wave-bar');
+    let audioCtx, isPlaying = false;
+    let masterGain, ambientNodes = [];
 
-    // Web Audio 音效
-    let audioCtx;
-    function getCtx() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return audioCtx; }
-    function playTone(f, t, d, v = 0.1) { try { const c = getCtx(), o = c.createOscillator(), g = c.createGain(); o.type = t; o.frequency.setValueAtTime(f, c.currentTime); g.gain.setValueAtTime(v, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d); } catch (e) {} }
+    // 和弦进行：Fmaj7 → Am7 → Dm7 → G7 (温柔梦幻)
+    const chordProgression = [
+        [261.63, 329.63, 392.00, 440.00],   // Fmaj7: F A C E
+        [220.00, 261.63, 329.63, 392.00],   // Am7:  A C E G
+        [293.66, 349.23, 440.00, 523.25],   // Dm7:  D F A C
+        [196.00, 246.94, 293.66, 349.23],   // G7:   G B D F
+    ];
+
+    function initCtx() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0;
+            masterGain.connect(audioCtx.destination);
+        }
+        return audioCtx;
+    }
+
+    // 创建带滤波的持续音色 — 温暖模拟感
+    function createPadVoice(freq, detune, type) {
+        const ctx = initCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+
+        osc.type = type || 'sine';
+        osc.frequency.value = freq;
+        osc.detune.value = detune || 0;
+
+        filter.type = 'lowpass';
+        filter.frequency.value = 600;
+        filter.Q.value = 0.5;
+
+        gain.gain.value = 0;
+
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.03 + Math.random() * 0.04;
+        lfoGain.gain.value = 15;
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+
+        osc.start();
+        lfo.start();
+        return { osc, gain, filter, lfo, lfoGain };
+    }
+
+    // 星尘闪烁 — 高频短音点缀
+    function createSparkle(freq) {
+        const ctx = initCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const delay = ctx.createDelay(1.0);
+
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.03, ctx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5 + Math.random() * 2);
+
+        delay.delayTime.value = 0.3 + Math.random() * 0.4;
+        const feedback = ctx.createGain();
+        feedback.gain.value = 0.3;
+        const wetGain = ctx.createGain();
+        wetGain.gain.value = 0.4;
+
+        osc.connect(gain);
+        gain.connect(delay);
+        delay.connect(feedback);
+        feedback.connect(delay);
+        gain.connect(masterGain);
+        delay.connect(wetGain);
+        wetGain.connect(masterGain);
+
+        osc.start();
+        osc.stop(ctx.currentTime + 3);
+        return { osc, gain, delay, feedback, wetGain };
+    }
+
+    // 低音暖底
+    function createBassDrone() {
+        const ctx = initCtx();
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc1.type = 'triangle';
+        osc1.frequency.value = 43.65;  // F1
+        osc2.type = 'sine';
+        osc2.frequency.value = 87.31;  // F2
+        osc2.detune.value = 5;
+
+        filter.type = 'lowpass';
+        filter.frequency.value = 120;
+
+        gain.gain.value = 0.05;
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(masterGain);
+
+        osc1.start();
+        osc2.start();
+        return { osc1, osc2, gain, filter };
+    }
+
+    let chordIndex = 0, chordTimeout;
+    function cycleChords() {
+        if (!isPlaying) return;
+        const chord = chordProgression[chordIndex % chordProgression.length];
+
+        // 清理旧弦
+        ambientNodes.forEach(n => {
+            if (n.osc && n.gain) { n.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5); }
+        });
+        setTimeout(() => {
+            ambientNodes.forEach(n => {
+                try { n.osc && n.osc.stop(); n.lfo && n.lfo.stop(); } catch(e) {}
+            });
+            ambientNodes = [];
+        }, 2000);
+
+        // 新和弦
+        ambientNodes = chord.flatMap(f => [
+            createPadVoice(f, 0, 'sine'),
+            createPadVoice(f / 2, 7 + Math.random() * 5, 'triangle'),
+            createPadVoice(f * 2, -5, 'sine'),
+        ]);
+
+        // 淡入
+        ambientNodes.forEach(n => {
+            if (n.gain) {
+                n.gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                n.gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 2);
+            }
+        });
+
+        // 星尘随和弦切换洒落
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                const sparkFreq = chord[Math.floor(Math.random() * chord.length)] * (2 + Math.random() * 4);
+                createSparkle(sparkFreq);
+            }, i * 600 + Math.random() * 400);
+        }
+
+        chordIndex++;
+        chordTimeout = setTimeout(cycleChords, 12000 + Math.random() * 4000);  // 12-16s 切换
+    }
+
+    // 撒星尘
+    let sparkleInterval;
+    function startSparkles() {
+        sparkleInterval = setInterval(() => {
+            if (!isPlaying) return;
+            const freqs = [1047, 1319, 1568, 1760, 2093, 2637];  // 高音区
+            createSparkle(freqs[Math.floor(Math.random() * freqs.length)]);
+        }, 1500 + Math.random() * 3000);
+    }
+
+    function initAudio() {
+        initCtx();
+        musicBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                // 停止
+                masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2);
+                ambientNodes.forEach(n => { try { n.gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5); } catch(e) {} });
+                clearTimeout(chordTimeout);
+                clearInterval(sparkleInterval);
+                waveBars.forEach(b => b.classList.remove('playing'));
+                isPlaying = false;
+                setTimeout(() => {
+                    ambientNodes.forEach(n => { try { n.osc && n.osc.stop(); n.lfo && n.lfo.stop(); } catch(e) {} });
+                    ambientNodes = [];
+                }, 2500);
+            } else {
+                // 播放
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                masterGain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 2);
+                createBassDrone();
+                chordIndex = 0;
+                cycleChords();
+                startSparkles();
+                waveBars.forEach(b => b.classList.add('playing'));
+                isPlaying = true;
+            }
+        });
+    }
+
+    // Web Audio 交互音效
+    function playTone(f, t, d, v = 0.1) { try { const c = initCtx(), o = c.createOscillator(), g = c.createGain(); o.type = t; o.frequency.setValueAtTime(f, c.currentTime); g.gain.setValueAtTime(v, c.currentTime); g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d); } catch (e) {} }
     document.querySelectorAll('button, .gallery-item, .planet').forEach(el => { el.addEventListener('mouseenter', () => playTone(600, 'sine', 0.2, 0.05)); });
 
     // 礼盒
