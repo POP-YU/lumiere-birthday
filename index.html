@@ -6,12 +6,16 @@
     <title>LUMIÈRE · For My Love</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Inter:wght@200;300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700&family=Noto+Serif+SC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Inter:wght@200;300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700&family=Noto+Serif+SC:wght@300;400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="grain-overlay"></div>
     <canvas id="starfield-canvas"></canvas>
+
+    <!-- 视差层 -->
+    <div class="parallax-bg-layer" id="parallax-bg"></div>
+    <div class="parallax-mid-layer" id="parallax-mid"></div>
 
     <!-- 加载器 -->
     <div id="preamble-loader" class="preamble-loader">
@@ -29,9 +33,26 @@
             <div class="progress-bar-container">
                 <div class="progress-bar-fill" id="loader-fill"></div>
             </div>
-            <p class="loader-text" id="loader-text">Loading our memories... 00%</p>
-            <p class="loader-sub">Preparing your cosmic journey</p>
+            <p class="loader-text" id="loader-text">CALIBRATING STELLAR COORDINATES</p>
+            <p class="loader-sub">Initializing cosmic gateway · <span id="loader-pct">00</span>%</p>
         </div>
+    </div>
+
+    <!-- 开启宇宙按钮 -->
+    <div id="universe-gate" class="universe-gate hidden">
+        <div class="gate-aurora"></div>
+        <div class="gate-rings">
+            <div class="gate-ring ring-r1"></div>
+            <div class="gate-ring ring-r2"></div>
+            <div class="gate-ring ring-r3"></div>
+        </div>
+        <button id="gate-btn" class="gate-btn">
+            <span class="gate-btn-glow"></span>
+            <span class="gate-btn-border"></span>
+            <span class="gate-btn-text">开 启 花 花 的 星 河 时 空</span>
+            <span class="gate-btn-sub">Enter Cosmic Gateway</span>
+        </button>
+        <p class="gate-hint">Tap to unfold the universe</p>
     </div>
 
     <!-- 主内容 -->
@@ -44,11 +65,11 @@
                 </div>
                 <svg class="music-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             </button>
-            <span class="music-tooltip">星声音景</span>
+            <span class="music-tooltip">COSMIC WAVES</span>
         </div>
 
         <!-- Hero -->
-        <section id="hero" class="hero">
+        <section id="hero" class="hero" data-parallax="0.15">
             <div class="planets-stage" id="planets-stage">
                 <div class="planet-wrapper left-planet" id="left-planet-wrapper">
                     <div class="planet" id="planet-left">
@@ -79,13 +100,13 @@
         </section>
 
         <!-- 时光罗盘 -->
-        <section id="chrono" class="chrono-section">
+        <section id="chrono" class="chrono-section" data-parallax="0.08">
             <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
             <h2 class="section-heading">Love Chronograph</h2>
             <p class="section-sub">精密如腕表机芯，记录我们共度的每一刻</p>
-            <div class="chrono-container">
-                <svg class="chrono-gears" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet"><defs><radialGradient id="gearGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(212,175,135,0.08)"/><stop offset="100%" stop-color="rgba(212,175,135,0.01)"/></radialGradient></defs><circle cx="250" cy="250" r="220" fill="none" stroke="rgba(212,175,135,0.15)" stroke-width="0.6"/><circle cx="250" cy="250" r="190" fill="none" stroke="rgba(212,175,135,0.1)" stroke-width="0.4" stroke-dasharray="3 7"/><circle cx="250" cy="250" r="70" fill="url(#gearGrad)" stroke="rgba(212,175,135,0.2)" stroke-width="0.5"/><circle cx="250" cy="250" r="30" fill="none" stroke="rgba(212,175,135,0.3)" stroke-width="0.4"/><circle cx="250" cy="250" r="8" fill="rgba(212,175,135,0.4)"/><g opacity="0.25"><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(0 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(30 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(60 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(90 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(120 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(150 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(180 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(210 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(240 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(270 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(300 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(330 250 250)"/></g></svg>
-                <div class="chrono-display glass-card">
+            <div class="chrono-container glass-card">
+                <svg class="chrono-gears" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet"><defs><radialGradient id="gearGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(212,175,135,0.08)"/><stop offset="100%" stop-color="rgba(212,175,135,0.01)"/></radialGradient></defs><circle cx="250" cy="250" r="220" fill="none" stroke="rgba(212,175,135,0.15)" stroke-width="0.6"/><circle cx="250" cy="250" r="190" fill="none" stroke="rgba(212,175,135,0.1)" stroke-width="0.4" stroke-dasharray="3 7"/><circle cx="250" cy="250" r="70" fill="url(#gearGrad)" stroke="rgba(212,175,135,0.2)" stroke-width="0.5"/><circle cx="250" cy="250" r="30" fill="none" stroke="rgba(212,175,135,0.3)" stroke-width="0.4"/><circle cx="250" cy="250" r="8" fill="rgba(212,175,135,0.4)"/></svg>
+                <div class="chrono-display">
                     <div class="chrono-card"><span class="chrono-value" id="c-years">00</span><span class="chrono-unit">YEARS</span></div>
                     <span class="chrono-sep">:</span>
                     <div class="chrono-card"><span class="chrono-value" id="c-months">00</span><span class="chrono-unit">MONTHS</span></div>
@@ -93,12 +114,27 @@
                     <div class="chrono-card"><span class="chrono-value" id="c-days">00</span><span class="chrono-unit">DAYS</span></div>
                 </div>
                 <div class="chrono-detail" id="chrono-detail-text"><span><span id="c-hours">00</span> HOURS</span><span class="dot">·</span><span><span id="c-minutes">00</span> MINUTES</span><span class="dot">·</span><span><span id="c-seconds">00</span> SECONDS</span></div>
-                <p class="chrono-since" id="chrono-since">Since 2024.01.01</p>
+                <p class="chrono-since" id="chrono-since">Since 2026.10.17</p>
+            </div>
+        </section>
+
+        <!-- Starlight Echoes 星轨回响 -->
+        <section id="echoes" class="echoes-section" data-parallax="0.06">
+            <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">✦</span><span class="divider-line"></span></div>
+            <h2 class="section-heading">Starlight Echoes</h2>
+            <p class="section-sub">超维星轨情感回响 · 每一条都是永恒的记忆胶囊</p>
+            <button id="echo-launch-btn" class="echo-launch-btn">
+                <span class="echo-btn-glow"></span>
+                <span class="echo-btn-text">+ 发射心声到星轨</span>
+                <span class="echo-btn-sub">Leave an Echo</span>
+            </button>
+            <div class="echoes-stream-container">
+                <div class="echoes-stream-track" id="echoes-track"></div>
             </div>
         </section>
 
         <!-- 记忆相册 -->
-        <section id="gallery" class="gallery-section">
+        <section id="gallery" class="gallery-section" data-parallax="0.12">
             <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
             <h2 class="section-heading">Memory Archive</h2>
             <p class="section-sub">失重宇宙中，我们的每一帧回忆</p>
@@ -106,7 +142,7 @@
         </section>
 
         <!-- 礼盒 -->
-        <section id="gift" class="gift-section">
+        <section id="gift" class="gift-section" data-parallax="0.05">
             <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
             <h2 class="section-heading">The Last Gift</h2>
             <div class="gift-box-container">
@@ -129,17 +165,61 @@
             <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
         </section>
 
-        <!-- 留言板 -->
-        <section id="comments" class="comments-section">
-            <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
-            <h2 class="section-heading">留言板</h2>
-            <div id="utterances-comments"></div>
-        </section>
-
         <footer class="footer"><p>Made with starlight · For My Love</p></footer>
     </main>
 
-    <!-- 灯箱 -->
+    <!-- 记忆维度沉浸展厅 Portal -->
+    <div id="portal-overlay" class="portal-overlay">
+        <div class="portal-bg" id="portal-bg"></div>
+        <div class="portal-stage" id="portal-stage">
+            <div class="portal-image-frame">
+                <img id="portal-img" src="" alt="">
+                <div class="portal-image-scan"></div>
+            </div>
+            <div class="portal-text-panel">
+                <div class="portal-meta" id="portal-meta"></div>
+                <div class="portal-poem" id="portal-poem"></div>
+                <button id="portal-return-btn" class="portal-return-btn">
+                    <span class="portal-btn-ring"></span>
+                    <span>返回星河轨道</span>
+                    <span class="portal-btn-sub">Return to Orbit</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 星轨回响输入 Modal -->
+    <div id="echo-modal-overlay" class="echo-modal-overlay">
+        <div class="echo-modal glass-card">
+            <div class="echo-modal-header">
+                <span class="echo-modal-star">✦</span>
+                <h3>发射心声到星轨</h3>
+                <button id="echo-modal-close" class="echo-modal-close">✕</button>
+            </div>
+            <div class="echo-modal-body">
+                <div class="echo-field">
+                    <label>你的时空坐标</label>
+                    <input type="text" id="echo-author" placeholder="例如：未来的他 / 平行宇宙的旅人" maxlength="24">
+                </div>
+                <div class="echo-field">
+                    <label>回响内容</label>
+                    <textarea id="echo-message" placeholder="写下你想永久刻入星河的话语..." maxlength="280" rows="4"></textarea>
+                    <span class="echo-char-count"><span id="echo-count">0</span>/280</span>
+                </div>
+            </div>
+            <div class="echo-modal-footer">
+                <button id="echo-submit-btn" class="echo-submit-btn">
+                    <span class="echo-submit-glow"></span>
+                    <span>✦ 发射入轨 ✦</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发射粒子动画层 -->
+    <canvas id="echo-particle-canvas" class="echo-particle-canvas"></canvas>
+
+    <!-- 灯箱（保留兼容） -->
     <div class="lightbox" id="lightbox">
         <div class="lightbox-bg" id="lightbox-bg"></div>
         <div class="lightbox-content"><img id="lightbox-img" src="" alt=""><button class="lightbox-close" id="lightbox-close">✕</button></div>
