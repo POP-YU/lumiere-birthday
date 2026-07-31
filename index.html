@@ -38,7 +38,7 @@
     <main id="main-content" class="main-content hidden">
         <!-- 音乐胶囊 -->
         <div class="music-capsule" id="music-capsule">
-            <button class="music-btn" id="music-btn" aria-label="音乐播放">
+            <button class="music-btn glass-card" id="music-btn" aria-label="音乐播放">
                 <div class="wave-bars" id="wave-bars">
                     <span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span>
                 </div>
@@ -85,7 +85,7 @@
             <p class="section-sub">精密如腕表机芯，记录我们共度的每一刻</p>
             <div class="chrono-container">
                 <svg class="chrono-gears" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet"><defs><radialGradient id="gearGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(212,175,135,0.08)"/><stop offset="100%" stop-color="rgba(212,175,135,0.01)"/></radialGradient></defs><circle cx="250" cy="250" r="220" fill="none" stroke="rgba(212,175,135,0.15)" stroke-width="0.6"/><circle cx="250" cy="250" r="190" fill="none" stroke="rgba(212,175,135,0.1)" stroke-width="0.4" stroke-dasharray="3 7"/><circle cx="250" cy="250" r="70" fill="url(#gearGrad)" stroke="rgba(212,175,135,0.2)" stroke-width="0.5"/><circle cx="250" cy="250" r="30" fill="none" stroke="rgba(212,175,135,0.3)" stroke-width="0.4"/><circle cx="250" cy="250" r="8" fill="rgba(212,175,135,0.4)"/><g opacity="0.25"><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(0 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(30 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(60 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(90 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(120 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(150 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(180 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(210 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(240 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(270 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(300 250 250)"/><rect x="248" y="28" width="4" height="16" rx="1" fill="rgba(212,175,135,0.4)" transform="rotate(330 250 250)"/></g></svg>
-                <div class="chrono-display">
+                <div class="chrono-display glass-card">
                     <div class="chrono-card"><span class="chrono-value" id="c-years">00</span><span class="chrono-unit">YEARS</span></div>
                     <span class="chrono-sep">:</span>
                     <div class="chrono-card"><span class="chrono-value" id="c-months">00</span><span class="chrono-unit">MONTHS</span></div>
@@ -111,7 +111,7 @@
             <h2 class="section-heading">The Last Gift</h2>
             <div class="gift-box-container">
                 <div class="gift-box" id="gift-box">
-                    <div class="gift-box-body">
+                    <div class="gift-box-body glass-card">
                         <div class="gift-box-lid"></div>
                         <div class="gift-box-glow"></div>
                         <div class="gift-box-text">UNLOCK MY HEART</div>
@@ -121,12 +121,19 @@
                 </div>
             </div>
             <div class="love-letter-overlay" id="love-letter-overlay">
-                <div class="love-letter-card">
+                <div class="love-letter-card glass-card">
                     <div class="love-letter-close" id="love-letter-close">✕</div>
                     <div class="love-letter-content" id="love-letter-content"></div>
                 </div>
             </div>
             <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+        </section>
+
+        <!-- 留言板 -->
+        <section id="comments" class="comments-section">
+            <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
+            <h2 class="section-heading">留言板</h2>
+            <div id="utterances-comments"></div>
         </section>
 
         <footer class="footer"><p>Made with starlight · For My Love</p></footer>

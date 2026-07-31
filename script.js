@@ -1,7 +1,7 @@
 (function() {
     'use strict';
-    const GF_NAME = 'ELENA';
-    const SINCE_DATE = new Date('2024-01-01T00:00:00');
+    const GF_NAME = '花花';
+    const SINCE_DATE = new Date('2026-10-17T00:00:00');
 
     // 星空
     const canvas = document.getElementById('starfield-canvas');
@@ -98,7 +98,7 @@
         if (grid.children.length === 0) grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:rgba(180,150,200,0.5);">在 images/ 目录下放入 1.jpg, 2.jpg ... 照片会自动展示</p>';
     }
     function loadImage(src) { return new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('Not found')); img.src = src; }); }
-    function createGalleryItem(src, index) { const div = document.createElement('div'); div.className = 'gallery-item'; const img = document.createElement('img'); img.src = src; img.alt = `Memory ${index}`; img.loading = 'lazy'; div.appendChild(img); div.addEventListener('click', () => openLightbox(src)); return div; }
+    function createGalleryItem(src, index) { const div = document.createElement('div'); div.className = 'gallery-item glass-card'; const img = document.createElement('img'); img.src = src; img.alt = `Memory ${index}`; img.loading = 'lazy'; div.appendChild(img); div.addEventListener('click', () => openLightbox(src)); return div; }
 
     // 灯箱
     const lightbox = document.getElementById('lightbox'), lightboxImg = document.getElementById('lightbox-img');
@@ -139,4 +139,16 @@
     // 初始设定
     document.getElementById('title-name').textContent = GF_NAME;
     document.getElementById('name-label').textContent = GF_NAME;
+
+    // 评论区
+    (function() {
+        var script = document.createElement('script');
+        script.src = 'https://utteranc.es/client.js';
+        script.setAttribute('repo', 'pop-yu/lumiere-birthday');
+        script.setAttribute('issue-term', 'pathname');
+        script.setAttribute('theme', 'github-dark');
+        script.setAttribute('crossorigin', 'anonymous');
+        script.async = true;
+        document.getElementById('utterances-comments').appendChild(script);
+    })();
 })();

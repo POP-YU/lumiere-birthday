@@ -107,3 +107,15 @@
 .lightbox-close:hover{opacity:1}
 .footer{text-align:center;padding:3rem;color:rgba(180,150,200,.4);font-size:.8rem;letter-spacing:.2em}
 @media(max-width:768px){.hero-title .title-line{font-size:2rem}.hero-title .title-name{font-size:3rem}.planet{width:80px;height:80px}.planet-ring-left{width:110px;height:110px}.planet-ring-right{width:100px;height:100px}.chrono-display{gap:.4rem;padding:1rem 1.5rem}.chrono-value{font-size:2rem}.gallery-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}}
+.glass-card{backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:.5px solid rgba(212,175,135,.3)}
+.planet{animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#0a0a14}
+::-webkit-scrollbar-thumb{background:rgba(212,175,135,.4);border-radius:3px}
+.gallery-item:hover{transform:translateY(-12px) rotateY(2deg) scale(1.02)}
+.progress-bar-fill{position:relative;overflow:hidden}
+.progress-bar-fill::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{100%{left:200%}}
+.comments-section{padding:4rem 2rem;max-width:700px;margin:0 auto}
+#utterances-comments{margin-top:2rem}
