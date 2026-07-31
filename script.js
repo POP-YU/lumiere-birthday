@@ -2,14 +2,14 @@
     'use strict';
     var GF_NAME = '花花';
     var SINCE_DATE = new Date('2026-01-11T00:00:00');
-    window.TOTAL_REAL_PHOTOS = 11; // Auto-generated from photo import
+    window.TOTAL_REAL_PHOTOS = 11;
 
-    // ============ 星空粒子系统 (智能分级渲染) ============
+    // ============ 星空粒子系统 (超轻量优化) ============
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
     var particles = [], mouse = { x: -1000, y: -1000 }, animationId;
     var isMobile = window.innerWidth < 768;
-    var starFrameSkip = 0, starFrameInterval = isMobile ? 2 : 1;
+    var starFrameSkip = 0, starFrameInterval = isMobile ? 3 : 2;
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -18,25 +18,26 @@
     }
     function initParticles() {
         var area = canvas.width * canvas.height;
-        var density = isMobile ? 0.00005 : 0.0001;
+        var density = isMobile ? 0.000018 : 0.000045;
         var count = Math.floor(area * density);
+        count = Math.min(count, isMobile ? 60 : 140);
         particles = [];
         for (var i = 0; i < count; i++) {
-            var p = {
+            particles.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                size: Math.random() * 2.2 + 0.3,
+                size: Math.random() * 1.6 + 0.3,
                 baseX: 0, baseY: 0,
-                speed: Math.random() * 0.025 + 0.008,
-                opacity: Math.random() * 0.8 + 0.2,
-                twinkle: Math.random() < 0.15,
+                speed: Math.random() * 0.02 + 0.005,
+                opacity: Math.random() * 0.6 + 0.3,
+                twinkle: Math.random() < 0.12,
                 twinklePhase: Math.random() * Math.PI * 2,
-                twinkleSpeed: Math.random() * 0.02 + 0.005,
-                trail: []
-            };
-            p.baseX = p.x;
-            p.baseY = p.y;
-            particles.push(p);
+                twinkleSpeed: Math.random() * 0.015 + 0.004
+            });
+        }
+        for (var j = 0; j < particles.length; j++) {
+            particles[j].baseX = particles[j].x;
+            particles[j].baseY = particles[j].y;
         }
     }
     function drawStars() {
@@ -48,43 +49,29 @@
             var p = particles[i];
             var dx = mx - p.x, dy = my - p.y;
             var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 150) {
-                var force = (1 - dist / 150) * 0.5;
-                p.x += dx * force * 0.015;
-                p.y += dy * force * 0.015;
+            if (dist < 120) {
+                var force = (1 - dist / 120) * 0.4;
+                p.x += dx * force * 0.01;
+                p.y += dy * force * 0.01;
             }
-            p.x += (p.baseX - p.x) * 0.012;
-            p.y += (p.baseY - p.y) * 0.012;
-            p.baseX += p.speed * 0.15;
+            p.x += (p.baseX - p.x) * 0.01;
+            p.y += (p.baseY - p.y) * 0.01;
+            p.baseX += p.speed * 0.1;
             if (p.baseX > canvas.width + 20) p.baseX = -20;
             if (p.baseX < -20) p.baseX = canvas.width + 20;
-            // Twinkle
             var alpha = p.opacity;
             if (p.twinkle) {
                 p.twinklePhase += p.twinkleSpeed;
                 alpha = p.opacity * (0.5 + 0.5 * Math.sin(p.twinklePhase));
             }
-            // Trail (2-point, lightweight)
-            p.trail.push({ x: p.x, y: p.y, a: alpha });
-            if (p.trail.length > 2) p.trail.shift();
-            if (p.trail.length > 1) {
-                var t0 = p.trail[0];
-                ctx.beginPath();
-                ctx.moveTo(t0.x, t0.y);
-                ctx.lineTo(p.x, p.y);
-                ctx.strokeStyle = 'rgba(180,150,210,' + (alpha * 0.3) + ')';
-                ctx.lineWidth = p.size * 0.6;
-                ctx.stroke();
-            }
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(212,175,135,' + alpha + ')';
             ctx.fill();
-            // Glow on larger stars
-            if (p.size > 1.4 && p.twinkle) {
+            if (p.size > 1.2 && p.twinkle) {
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(212,175,135,' + (alpha * 0.12) + ')';
+                ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(212,175,135,' + (alpha * 0.08) + ')';
                 ctx.fill();
             }
         }
@@ -92,6 +79,7 @@
     }
     window.addEventListener('resize', function() {
         isMobile = window.innerWidth < 768;
+        starFrameInterval = isMobile ? 3 : 2;
         resizeCanvas();
     });
     window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -142,9 +130,7 @@
     simulateLoading();
 
     var loaderSafetyTimeout = setTimeout(function() {
-        if (!loader._finished) {
-            finishLoading();
-        }
+        if (!loader._finished) finishLoading();
     }, 2500);
 
     // ============ 宇宙之门 ============
@@ -179,234 +165,413 @@
                 initSfx();
                 initLerpScroll();
                 initPortal();
-                try { startAmbientMusic(); } catch(err) { console.warn('[LUMIÈRE] Audio:', err); }
+                // 音乐系统 — 最重要，立即启动
+                try { initMusicSystem(); } catch(err) { console.warn('[LUMIÈRE] Music init:', err); }
             }, 600);
         }, { once: true });
     }
 
-    // ============ 沉浸式氛围音乐引擎 ============
-    var audioCtx, masterGain, reverbNode, musicNodes = [];
-    var bassNodes = [], padNodes = [], shimmerNodes = [];
-    var chordTimeout, shimmerInterval;
+    // ╔══════════════════════════════════════════╗
+    // ║    🎵 星河旋律 · 浪漫音乐引擎   🎵      ║
+    // ║    A大调五声音阶 · 85BPM · 自动演奏   ║
+    // ╚══════════════════════════════════════════╝
+    var musicCtx = null;
+    var musicMasterGain = null;
+    var musicReverb = null;
+    var musicDryGain = null;
+    var musicActiveOscillators = [];
+    var musicTimers = [];
+    var musicStarted = false;
+    var musicMuted = false;
 
-    function initAudioCtx() {
-        if (!audioCtx) {
-            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
-            catch(e) { console.warn('[LUMIÈRE] AudioContext not available:', e); return null; }
-            if (!audioCtx) return null;
-            try {
-                masterGain = audioCtx.createGain();
-                masterGain.gain.value = 0;
-                reverbNode = createReverb();
-                masterGain.connect(reverbNode);
-                reverbNode.connect(audioCtx.destination);
-                var dryGain = audioCtx.createGain();
-                dryGain.gain.value = 0.4;
-                masterGain.connect(dryGain);
-                dryGain.connect(audioCtx.destination);
-            } catch(e) {
-                console.warn('[LUMIÈRE] Audio routing setup failed:', e);
-                audioCtx = null; return null;
+    // A major pentatonic across 3 octaves (Hz)
+    var PENTA = {
+        low:  [110.00, 123.47, 138.59, 164.81, 185.00],
+        mid:  [220.00, 246.94, 277.18, 329.63, 369.99],
+        high: [440.00, 493.88, 554.37, 659.25, 739.99],
+        top:  [880.00, 987.77, 1108.73, 1318.51, 1479.98]
+    };
+    // Chord progression: Amaj7 → F#m7 → Dmaj7 → E7 (using pentatonic-available tones)
+    // We'll use root-fifth dyads for the pad
+    var CHORD_ROOTS = [PENTA.low[0], PENTA.low[3], PENTA.low[2], PENTA.low[4]]; // A F# D E
+    var CHORD_THIRDS = [PENTA.mid[2], PENTA.mid[0], PENTA.mid[3], PENTA.mid[1]]; // C# A F# G#
+    var CHORD_DURATION = 8000; // 8 seconds per chord
+
+    // ── 旋律序列 (pentatonic index, octave ref, duration ms) ──
+    var MELODY = [
+        [2,'mid',600],[3,'mid',300],[4,'mid',400],[2,'mid',300],[0,'mid',800],  // C# E F# C# A
+        [1,'mid',400],[2,'mid',300],[3,'mid',600],[1,'mid',400],[0,'mid',500],  // B C# E B A
+        [2,'mid',300],[3,'mid',300],[4,'mid',300],[3,'mid',300],[2,'mid',500],[1,'mid',300],[0,'mid',700], // C# E F# E C# B A
+        [2,'high',500],[0,'high',300],[4,'mid',600],[3,'mid',300],[2,'mid',300],[1,'mid',300],[0,'mid',900], // C# A F# E C# B A
+        [0,'low',400],[2,'low',300],[3,'low',500],[1,'low',400],[0,'low',900],  // A C# E B A (bass melody)
+        [1,'mid',600],[2,'mid',400],[3,'mid',700],[2,'mid',400],[0,'mid',300],[1,'mid',300],[2,'mid',1100], // B C# E C# A B C#
+        [3,'mid',400],[4,'mid',300],[0,'high',500],[4,'mid',300],[3,'mid',300],[2,'mid',300],[1,'mid',400],[0,'mid',1200] // E F# A F# E C# B A
+    ];
+    var melodyIdx = 0;
+    var chordStep = 0;
+
+    function initMusicCtx() {
+        if (musicCtx) return musicCtx;
+        try {
+            musicCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) { return null; }
+        if (!musicCtx) return null;
+
+        musicMasterGain = musicCtx.createGain();
+        musicMasterGain.gain.value = 0;
+
+        // 混响
+        var convolver = musicCtx.createConvolver();
+        var reverbIR = createReverbIR(musicCtx);
+        convolver.buffer = reverbIR;
+
+        var reverbGain = musicCtx.createGain();
+        reverbGain.gain.value = 0.45;
+        musicMasterGain.connect(convolver);
+        convolver.connect(reverbGain);
+        reverbGain.connect(musicCtx.destination);
+
+        // 干声
+        musicDryGain = musicCtx.createGain();
+        musicDryGain.gain.value = 0.55;
+        musicMasterGain.connect(musicDryGain);
+        musicDryGain.connect(musicCtx.destination);
+
+        return musicCtx;
+    }
+
+    function createReverbIR(ctx) {
+        var len = ctx.sampleRate * 2.5;
+        var buf = ctx.createBuffer(2, len, ctx.sampleRate);
+        for (var ch = 0; ch < 2; ch++) {
+            var data = buf.getChannelData(ch);
+            for (var i = 0; i < len; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5);
             }
         }
-        return audioCtx;
+        return buf;
     }
 
-    function createReverb() {
-        var ctx = initAudioCtx();
-        var input = ctx.createGain();
-        var output = ctx.createGain();
-        output.gain.value = 0.5;
-        var delays = [0.037, 0.043, 0.051, 0.059, 0.067, 0.073, 0.081, 0.089];
-        for (var i = 0; i < delays.length; i++) {
-            var d = ctx.createDelay(1); d.delayTime.value = delays[i];
-            var g = ctx.createGain(); g.gain.value = 0.06;
-            var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2000 + Math.random() * 3000;
-            input.connect(d); d.connect(g); g.connect(f); f.connect(output); g.connect(d);
-        }
-        return { input: input, output: output, connect: function(dest) { output.connect(dest); } };
-    }
+    // 创建温暖的单音 (带轻微失谐叠加)
+    function createWarmVoice(freq, type, gainVal, filterFreq, filterQ) {
+        var ctx = musicCtx;
+        type = type || 'sawtooth';
+        // 主振荡器 + 失谐副振荡器
+        var osc1 = ctx.createOscillator(); osc1.type = type; osc1.frequency.value = freq;
+        var osc2 = ctx.createOscillator(); osc2.type = type; osc2.frequency.value = freq * 1.003;
+        var osc3 = ctx.createOscillator(); osc3.type = 'sine'; osc3.frequency.value = freq * 0.5;
 
-    function createLayeredVoice(freq, detune, type, filterFreq, gainVal) {
-        var ctx = initAudioCtx();
-        var osc = ctx.createOscillator(); var gain = ctx.createGain(); var filter = ctx.createBiquadFilter();
-        var lfoOsc = ctx.createOscillator(); var lfoGain = ctx.createGain();
-        osc.type = type || 'sawtooth'; osc.frequency.value = freq; osc.detune.value = detune || 0;
-        filter.type = 'lowpass'; filter.frequency.value = filterFreq || 800; filter.Q.value = 0.4;
-        gain.gain.value = 0;
-        lfoOsc.type = 'sine'; lfoOsc.frequency.value = 0.02 + Math.random() * 0.06; lfoGain.gain.value = filterFreq * 0.3;
-        lfoOsc.connect(lfoGain); lfoGain.connect(filter.frequency);
-        osc.connect(filter); filter.connect(gain); gain.connect(masterGain);
-        osc.start(); lfoOsc.start();
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(gainVal || 0.04, ctx.currentTime + 2);
-        return { osc: osc, gain: gain, filter: filter, lfo: lfoOsc, lfoGain: lfoGain };
-    }
+        var voiceGain = ctx.createGain(); voiceGain.gain.value = 0;
+        var filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = filterFreq || 1800; filter.Q.value = filterQ || 0.5;
 
-    function createBassDrone() {
-        var ctx = initAudioCtx();
-        var osc1 = ctx.createOscillator(); osc1.type = 'triangle'; osc1.frequency.value = 43.65;
-        var osc2 = ctx.createOscillator(); osc2.type = 'sine'; osc2.frequency.value = 87.31; osc2.detune.value = 6;
-        var osc3 = ctx.createOscillator(); osc3.type = 'sawtooth'; osc3.frequency.value = 43.65; osc3.detune.value = -4;
-        var gain = ctx.createGain(); var filter = ctx.createBiquadFilter();
-        filter.type = 'lowpass'; filter.frequency.value = 140; filter.Q.value = 0.6;
-        gain.gain.value = 0; gain.gain.setValueAtTime(0, ctx.currentTime); gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 3);
-        osc1.connect(filter); osc2.connect(filter); osc3.connect(filter); filter.connect(gain); gain.connect(masterGain);
+        // 慢速滤波器 LFO 调制
+        var lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.08 + Math.random() * 0.12;
+        var lfoGain = ctx.createGain(); lfoGain.gain.value = filterFreq ? filterFreq * 0.4 : 600;
+        lfo.connect(lfoGain); lfoGain.connect(filter.frequency);
+        lfo.start();
+
+        osc1.connect(filter); osc2.connect(filter); osc3.connect(filter);
+        filter.connect(voiceGain);
+        voiceGain.connect(musicMasterGain);
+
         osc1.start(); osc2.start(); osc3.start();
-        return { osc1: osc1, osc2: osc2, osc3: osc3, gain: gain, filter: filter };
+
+        voiceGain.gain.setValueAtTime(0, ctx.currentTime);
+        voiceGain.gain.linearRampToValueAtTime(gainVal || 0.06, ctx.currentTime + 0.8);
+
+        musicActiveOscillators.push(osc1, osc2, osc3, lfo);
+        return { gain: voiceGain, osc: [osc1, osc2, osc3], lfo: lfo, filter: filter };
     }
 
-    var chordProgression = [
-        [261.63, 329.63, 392.00, 440.00, 523.25],
-        [220.00, 261.63, 329.63, 392.00, 493.88],
-        [293.66, 349.23, 440.00, 523.25, 587.33],
-        [196.00, 246.94, 293.66, 349.23, 440.00]
-    ];
-    var chordIdx = 0, currentPads = [], oldPads = [];
+    // 播放一个音符
+    function playNote(freq, duration, vol, type, attack) {
+        var ctx = musicCtx;
+        var t = ctx.currentTime;
+        vol = vol || 0.07;
+        attack = attack || 0.03;
 
-    function cyclePadChords() {
-        if (!musicPlaying) return;
-        var chord = chordProgression[chordIdx % chordProgression.length];
-        oldPads = currentPads;
-        oldPads.forEach(function(n) { try { if (n.gain) n.gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 1.5); } catch(e) {} });
-        currentPads = [];
-        chord.forEach(function(f) {
-            currentPads.push(createLayeredVoice(f, 0, 'sawtooth', 500, 0.035));
-            currentPads.push(createLayeredVoice(f / 2, 8, 'triangle', 300, 0.03));
-            currentPads.push(createLayeredVoice(f * 2, -6, 'sine', 1200, 0.025));
+        var osc = ctx.createOscillator(); osc.type = type || 'sine'; osc.frequency.value = freq;
+        var gain = ctx.createGain(); gain.gain.setValueAtTime(0, t);
+        var filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 2500; filter.Q.value = 0.6;
+
+        gain.gain.linearRampToValueAtTime(vol, t + attack);
+        gain.gain.setValueAtTime(vol, t + duration * 0.6);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+
+        osc.connect(filter); filter.connect(gain);
+        gain.connect(musicMasterGain);
+        osc.start(t); osc.stop(t + duration + 0.05);
+        musicActiveOscillators.push(osc);
+    }
+
+    // 播放和弦铺垫
+    function playChordPad(root, third, duration) {
+        var voices = [];
+        // 根音八度叠层
+        voices.push(createWarmVoice(root, 'sawtooth', 0.04, 400, 0.4));
+        voices.push(createWarmVoice(root * 2, 'triangle', 0.03, 600, 0.3));
+        // 三音
+        voices.push(createWarmVoice(third, 'sawtooth', 0.035, 500, 0.4));
+        voices.push(createWarmVoice(third * 2, 'triangle', 0.025, 700, 0.3));
+        // 五音 (高八度)
+        voices.push(createWarmVoice(root * 3, 'sine', 0.02, 1000, 0.3));
+
+        // duration 后淡出
+        var ctx = musicCtx;
+        var t = ctx.currentTime;
+        setTimeout(function() {
+            voices.forEach(function(v) {
+                try { v.gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 2); } catch(e) {}
+            });
+        }, duration - 2000);
+
+        // 清理
+        setTimeout(function() {
+            voices.forEach(function(v) {
+                try { v.osc.forEach(function(o) { o.stop(); }); v.lfo.stop(); } catch(e) {}
+            });
+            // 从活跃列表移除
+            voices.forEach(function(v) {
+                v.osc.forEach(function(o) {
+                    var idx = musicActiveOscillators.indexOf(o);
+                    if (idx >= 0) musicActiveOscillators.splice(idx, 1);
+                });
+                var idx2 = musicActiveOscillators.indexOf(v.lfo);
+                if (idx2 >= 0) musicActiveOscillators.splice(idx2, 1);
+            });
+        }, duration + 2000);
+
+        return voices;
+    }
+
+    // 旋律循环
+    function playMelodyStep() {
+        if (!musicPlaying || musicMuted) {
+            melodyIdx = (melodyIdx + 1) % MELODY.length;
+            musicTimers.push(setTimeout(playMelodyStep, 200));
+            return;
+        }
+
+        var note = MELODY[melodyIdx];
+        var freq = PENTA[note[1]][note[0]];
+        var dur = note[2];
+        var vol = (note[1] === 'high' || note[1] === 'top') ? 0.045 : (note[1] === 'low' ? 0.06 : 0.055);
+
+        // 主旋律音 + 轻柔的八度和声
+        playNote(freq, dur / 1000, vol, 'sine', 0.02);
+        if (note[1] !== 'low') {
+            playNote(freq * 2, dur / 1000, vol * 0.3, 'triangle', 0.04);
+        }
+
+        // 偶尔添加泛音闪烁
+        if (Math.random() < 0.25) {
+            playNote(freq * 3, dur / 1000 * 0.4, vol * 0.15, 'sine', 0.08);
+        }
+
+        melodyIdx = (melodyIdx + 1) % MELODY.length;
+        musicTimers.push(setTimeout(playMelodyStep, dur + 50));
+    }
+
+    // 和弦进行循环
+    var currentPadVoices = [];
+    function playChordCycle() {
+        if (!musicPlaying || musicMuted) {
+            chordStep = (chordStep + 1) % CHORD_ROOTS.length;
+            musicTimers.push(setTimeout(playChordCycle, CHORD_DURATION));
+            return;
+        }
+
+        // 清理旧铺垫
+        var ctx = musicCtx;
+        currentPadVoices.forEach(function(v) {
+            try { v.gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 1.5); } catch(e) {}
         });
         setTimeout(function() {
-            oldPads.forEach(function(n) { try { n.osc && n.osc.stop(); n.lfo && n.lfo.stop(); } catch(e) {} });
-            oldPads = [];
-        }, 2000);
-        for (var i = 0; i < 4; i++) {
-            (function(delay) {
-                setTimeout(function() {
-                    if (!musicPlaying) return;
-                    createShimmer(chord[Math.floor(Math.random() * chord.length)] * (2 + Math.random() * 5));
-                }, delay);
-            })(i * 500 + Math.random() * 500);
+            currentPadVoices.forEach(function(v) {
+                try { v.osc.forEach(function(o) { o.stop(); }); v.lfo.stop(); } catch(e) {}
+            });
+            currentPadVoices = [];
+        }, 1800);
+
+        var root = CHORD_ROOTS[chordStep];
+        var third = CHORD_THIRDS[chordStep];
+        currentPadVoices = playChordPad(root, third, CHORD_DURATION);
+
+        chordStep = (chordStep + 1) % CHORD_ROOTS.length;
+        musicTimers.push(setTimeout(playChordCycle, CHORD_DURATION));
+    }
+
+    // 低音线
+    function playBassLine() {
+        if (!musicPlaying || musicMuted) {
+            musicTimers.push(setTimeout(playBassLine, 4000));
+            return;
         }
-        chordIdx++;
-        chordTimeout = setTimeout(cyclePadChords, 14000 + Math.random() * 5000);
+
+        var root = CHORD_ROOTS[chordStep];
+        var ctx = musicCtx;
+
+        // Walking bass pattern
+        var bassPattern = [
+            [root, 800], [root, 400], [root * 1.5, 400], [root, 400],
+            [root * 0.75, 600], [root, 400], [root * 1.5, 500], [root * 1.33, 500]
+        ];
+
+        var t = ctx.currentTime;
+        var accum = 0;
+        bassPattern.forEach(function(step) {
+            var freq = step[0], dur = step[1] / 1000;
+            var osc = ctx.createOscillator(); osc.type = 'triangle'; osc.frequency.value = freq;
+            var gain = ctx.createGain();
+            var filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 350;
+            gain.gain.setValueAtTime(0, t + accum);
+            gain.gain.linearRampToValueAtTime(0.06, t + accum + 0.02);
+            gain.gain.setValueAtTime(0.06, t + accum + dur * 0.6);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + accum + dur);
+            osc.connect(filter); filter.connect(gain); gain.connect(musicMasterGain);
+            osc.start(t + accum); osc.stop(t + accum + dur + 0.05);
+            musicActiveOscillators.push(osc);
+            accum += dur;
+        });
+
+        musicTimers.push(setTimeout(playBassLine, 4000));
     }
 
-    function createShimmer(freq) {
-        var ctx = initAudioCtx();
-        var osc = ctx.createOscillator(); var gain = ctx.createGain();
-        var filter = ctx.createBiquadFilter(); var delay = ctx.createDelay(1);
-        osc.type = 'sine'; osc.frequency.value = freq;
-        filter.type = 'bandpass'; filter.frequency.value = freq; filter.Q.value = 3;
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.045, ctx.currentTime + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
-        delay.delayTime.value = 0.25 + Math.random() * 0.5;
-        var fb = ctx.createGain(); fb.gain.value = 0.4;
-        var wet = ctx.createGain(); wet.gain.value = 0.5;
-        osc.connect(filter); filter.connect(gain); gain.connect(delay);
-        delay.connect(fb); fb.connect(delay); gain.connect(masterGain); delay.connect(wet); wet.connect(masterGain);
-        osc.start(); osc.stop(ctx.currentTime + 3.5);
+    // 星光闪烁 (高频点缀)
+    function playStardust() {
+        if (!musicPlaying || musicMuted) {
+            musicTimers.push(setTimeout(playStardust, 1500 + Math.random() * 2000));
+            return;
+        }
+        var idx = Math.floor(Math.random() * PENTA.top.length);
+        var freq = PENTA.top[idx];
+        playNote(freq, 0.8 + Math.random() * 1.5, 0.012 + Math.random() * 0.02, 'sine', 0.06);
+        musicTimers.push(setTimeout(playStardust, 1500 + Math.random() * 3000));
     }
 
-    function startShimmerCycle() {
-        shimmerInterval = setInterval(function() {
-            if (!musicPlaying) return;
-            var freqs = [1047, 1319, 1568, 1760, 2093, 2349, 2637, 2794, 3136, 3520];
-            createShimmer(freqs[Math.floor(Math.random() * freqs.length)]);
-        }, 2000 + Math.random() * 3000);
-    }
+    function initMusicSystem() {
+        if (musicStarted) return;
+        musicStarted = true;
+        var c = initMusicCtx();
+        if (!c) { console.warn('[MUSIC] AudioContext不可用'); return; }
+        if (c.state === 'suspended') c.resume();
 
-    function startAmbientMusic() {
-        initAudioCtx();
-        if (!audioCtx) return;
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
-        masterGain.gain.linearRampToValueAtTime(0.8, audioCtx.currentTime + 1.5);
-        bassNodes = [createBassDrone(), createBassDrone()];
-        chordIdx = 0; cyclePadChords(); startShimmerCycle();
+        // 淡入主音量
+        musicMasterGain.gain.setValueAtTime(0, c.currentTime);
+        musicMasterGain.gain.linearRampToValueAtTime(0.75, c.currentTime + 2);
+
+        // 启动所有音乐层
+        chordStep = 0;
+        melodyIdx = 0;
+        musicTimers.push(setTimeout(playMelodyStep, 600));
+        musicTimers.push(setTimeout(playChordCycle, 300));
+        musicTimers.push(setTimeout(playBassLine, 900));
+        musicTimers.push(setTimeout(playStardust, 2000));
+
+        // 音波条动画
         var waveBars = document.querySelectorAll('.wave-bar');
         waveBars.forEach(function(b) { b.classList.add('playing'); });
+
+        // 音乐开关按钮
         var musicBtn = document.getElementById('music-btn');
+        if (!musicBtn) return;
+
+        // 移除旧监听器
+        var newBtn = musicBtn.cloneNode(true);
+        musicBtn.parentNode.replaceChild(newBtn, musicBtn);
+        musicBtn = newBtn;
+
         musicBtn.addEventListener('click', function() {
-            if (!audioCtx) return;
-            if (musicPlaying) {
-                masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
-                clearTimeout(chordTimeout); clearInterval(shimmerInterval);
-                waveBars.forEach(function(b) { b.classList.remove('playing'); });
-                musicPlaying = false;
-                setTimeout(function() {
-                    var all = currentPads.concat(oldPads, bassNodes);
-                    all.forEach(function(n) { try { if (n.osc) n.osc.stop(); if (n.osc1) { n.osc1.stop(); n.osc2.stop(); n.osc3.stop(); } if (n.lfo) n.lfo.stop(); } catch(e) {} });
-                    currentPads = []; oldPads = []; bassNodes = [];
-                }, 2000);
-            } else {
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
-                masterGain.gain.linearRampToValueAtTime(0.8, audioCtx.currentTime + 0.8);
-                bassNodes = [createBassDrone()];
-                chordIdx = 0; cyclePadChords(); startShimmerCycle();
-                waveBars.forEach(function(b) { b.classList.add('playing'); });
+            if (!musicCtx) return;
+            if (musicCtx.state === 'suspended') musicCtx.resume();
+
+            if (musicMuted) {
+                // 取消静音
+                musicMuted = false;
+                musicMasterGain.gain.linearRampToValueAtTime(0.75, musicCtx.currentTime + 0.8);
+                var wb = document.querySelectorAll('.wave-bar');
+                wb.forEach(function(b) { b.classList.add('playing'); });
                 musicPlaying = true;
+                // 重启循环
+                melodyIdx = 0; chordStep = 0;
+                playMelodyStep();
+                playChordCycle();
+                playBassLine();
+                playStardust();
+            } else {
+                // 静音
+                musicMuted = true;
+                musicMasterGain.gain.linearRampToValueAtTime(0, musicCtx.currentTime + 1.2);
+                var wb = document.querySelectorAll('.wave-bar');
+                wb.forEach(function(b) { b.classList.remove('playing'); });
+                musicPlaying = false;
+                // 清理所有定时器
+                musicTimers.forEach(function(t) { clearTimeout(t); });
+                musicTimers = [];
+                // 清理振荡器
+                var t = musicCtx.currentTime;
+                musicActiveOscillators.forEach(function(o) {
+                    try { o.stop(t + 0.1); } catch(e) {}
+                });
+                musicActiveOscillators = [];
+                currentPadVoices = [];
             }
         });
     }
 
     // ============ UI 交互音效 ============
     function initSfx() {
-        function playSfx(freq, type, dur, vol, filterType, filterFreq) {
+        function playSfx(freq, type, dur, vol) {
             try {
-                var c = initAudioCtx(); if (!c) return;
-                var o = c.createOscillator(); var g = c.createGain(); var f = filterType ? c.createBiquadFilter() : null;
-                o.type = type || 'sine'; o.frequency.setValueAtTime(freq, c.currentTime);
-                g.gain.setValueAtTime(vol || 0.08, c.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + (dur || 0.3));
-                if (f) { f.type = filterType; f.frequency.value = filterFreq || 1000; f.Q.value = 2; o.connect(f); f.connect(g); }
-                else { o.connect(g); }
-                g.connect(audioCtx.destination); o.start(); o.stop(c.currentTime + dur + 0.1);
+                if (!musicCtx) return;
+                if (musicCtx.state === 'suspended') musicCtx.resume();
+                var o = musicCtx.createOscillator(); var g = musicCtx.createGain();
+                o.type = type || 'sine'; o.frequency.setValueAtTime(freq, musicCtx.currentTime);
+                g.gain.setValueAtTime(vol || 0.06, musicCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, musicCtx.currentTime + (dur || 0.25));
+                o.connect(g); g.connect(musicCtx.destination);
+                o.start(); o.stop(musicCtx.currentTime + dur + 0.1);
             } catch(e) {}
         }
         document.querySelectorAll('.gallery-item, .echo-capsule, .gate-btn, .echo-launch-btn').forEach(function(el) {
-            el.addEventListener('mouseenter', function() { playSfx(200 + Math.random()*200, 'sine', 0.25, 0.04, 'lowpass', 400); });
+            el.addEventListener('mouseenter', function() { playSfx(300 + Math.random()*200, 'sine', 0.2, 0.03); });
         });
         document.querySelectorAll('button').forEach(function(el) {
-            el.addEventListener('click', function() { playSfx(800, 'sine', 0.15, 0.06, 'bandpass', 1200); });
+            el.addEventListener('click', function() { playSfx(800, 'sine', 0.12, 0.05); });
         });
     }
 
-    // ============ 3D 行星渲染引擎 (智能分层优化版) ============
+    // ============ 3D 行星渲染 (大幅降频优化) ============
     var planetLeftCanvas, planetRightCanvas;
     var planetLeftCtx, planetRightCtx;
     var planetRotation = 0;
     var planetMouseX = 0, planetMouseY = 0;
     var planetTargetMX = 0, planetTargetMY = 0;
-    var planetRenderSkip = 0, planetRenderInterval = isMobile ? 2 : 1;
+    var planetRenderSkip = 0;
     var planetCachedTextures = {};
+    // 降频：desktop每4帧渲染一次，mobile每7帧
+    var planetRenderInterval = isMobile ? 7 : 4;
 
     function createProceduralTexture(isLeft) {
         var cacheKey = isLeft ? 'left' : 'right';
         if (planetCachedTextures[cacheKey]) return planetCachedTextures[cacheKey];
-        var w = 256, h = 128; // Half original res for perf
+        var w = 256, h = 128;
         var off = document.createElement('canvas');
         off.width = w; off.height = h;
         var cx = off.getContext('2d');
-
         var baseGrad = cx.createLinearGradient(0, 0, w, h);
         baseGrad.addColorStop(0, 'hsl(35, 40%, ' + (isLeft ? '35%' : '40%') + ')');
         baseGrad.addColorStop(0.3, 'hsl(45, 50%, ' + (isLeft ? '45%' : '50%') + ')');
         baseGrad.addColorStop(0.5, 'hsl(55, 60%, ' + (isLeft ? '50%' : '55%') + ')');
         baseGrad.addColorStop(0.7, 'hsl(30, 45%, ' + (isLeft ? '40%' : '45%') + ')');
         baseGrad.addColorStop(1, 'hsl(25, 35%, ' + (isLeft ? '28%' : '32%') + ')');
-        cx.fillStyle = baseGrad;
-        cx.fillRect(0, 0, w, h);
-
-        // Surface bands
+        cx.fillStyle = baseGrad; cx.fillRect(0, 0, w, h);
         for (var y = 0; y < h; y += 2) {
             var noise = Math.sin(y * 0.06) * 0.25 + Math.sin(y * 0.15 + 2) * 0.12 + Math.sin(y * 0.04 + 5) * 0.18;
             cx.fillStyle = 'rgba(' + (isLeft ? '180,140,100' : '212,175,135') + ',' + (0.06 + noise * 0.25) + ')';
             cx.fillRect(0, y, w, 2);
         }
-
-        // Crater-like spots (reduced count)
         for (var i = 0; i < 25; i++) {
             var cxx = Math.random() * w, cyy = Math.random() * h;
             var r = Math.random() * 10 + 2;
@@ -414,35 +579,25 @@
             grad.addColorStop(0, 'rgba(0,0,0,' + (Math.random() * 0.25 + 0.08) + ')');
             grad.addColorStop(0.6, 'rgba(0,0,0,' + (Math.random() * 0.1) + ')');
             grad.addColorStop(1, 'rgba(255,255,255,' + (Math.random() * 0.04) + ')');
-            cx.fillStyle = grad;
-            cx.beginPath(); cx.arc(cxx, cyy, r, 0, Math.PI * 2); cx.fill();
+            cx.fillStyle = grad; cx.beginPath(); cx.arc(cxx, cyy, r, 0, Math.PI * 2); cx.fill();
         }
-
         planetCachedTextures[cacheKey] = off;
         return off;
     }
 
     function render3DPlanet(ctx, size, texture, rotationAngle, lightAngle) {
-        // Render at half-res for 4x fewer pixels, then browser scales up via canvas size
-        var r = size / 2;
-        var cx = r, cy = r;
+        var r = size / 2, cx = r, cy = r;
         var tw = texture.width, th = texture.height;
         var texCtx = texture.getContext('2d');
-
-        // Pre-sample texture once into ImageData for fast random access
-        // Actually, getImageData per pixel is slow. Let's pre-read the whole thing.
         var imgData = texCtx.getImageData(0, 0, tw, th);
         var pixels = imgData.data;
-
         ctx.clearRect(0, 0, size, size);
-        var step = 2; // Skip every other pixel = 4x speedup
+        var step = 3;
 
         for (var y = -r; y < r; y += step) {
             var yNorm = y / r;
             if (Math.abs(yNorm) > 0.97) continue;
             var sliceWidth = Math.sqrt(Math.max(0, r * r - y * y));
-            var zNorm = sliceWidth / r;
-
             for (var x = -sliceWidth; x < sliceWidth; x += step) {
                 var z = Math.sqrt(Math.max(0, r * r - x * x - y * y));
                 var u = ((Math.atan2(x, z) / (Math.PI * 2) + 0.5 + rotationAngle) % 1 + 1) % 1;
@@ -450,38 +605,29 @@
                 var tx = Math.floor(u * (tw - 1));
                 var ty = Math.floor(v * (th - 1));
                 ty = ty < 0 ? 0 : (ty >= th ? th - 1 : ty);
-
                 var idx = (ty * tw + tx) * 4;
                 var pr = pixels[idx], pg = pixels[idx + 1], pb = pixels[idx + 2];
-
                 var nx = x / r, ny = yNorm, nz = z / r;
                 var len = Math.sqrt(nx * nx + ny * ny + nz * nz);
                 nx /= len; ny /= len; nz /= len;
-
                 var diffuse = Math.max(0, nx * lightAngle.x + ny * lightAngle.y + nz * lightAngle.z);
                 diffuse = diffuse * 0.65 + 0.35;
-
                 var halfZ = nz + lightAngle.z + 1;
                 var specular = Math.pow(Math.max(0, halfZ / 2), 35) * 0.3;
-                var rim = Math.pow(1 - Math.abs(zNorm), 3) * 0.2;
-
+                var rim = Math.pow(1 - Math.abs(z / r), 3) * 0.2;
                 var rVal = Math.min(255, pr * diffuse + specular * 255 + rim * 255);
                 var gVal = Math.min(255, pg * diffuse + specular * 220 + rim * 220);
                 var bVal = Math.min(255, pb * diffuse + specular * 180 + rim * 180);
-
                 ctx.fillStyle = 'rgb(' + Math.floor(rVal) + ',' + Math.floor(gVal) + ',' + Math.floor(bVal) + ')';
                 ctx.fillRect(cx + x, cy + y, step, step);
             }
         }
-
-        // Atmosphere glow
-        var glowGrad = ctx.createRadialGradient(cx, cy, r * 0.82, cx, cy, r * 1.18);
+        var glowGrad = ctx.createRadialGradient(cx, cy, r * 0.85, cx, cy, r * 1.15);
         glowGrad.addColorStop(0, 'rgba(212,175,135,0)');
-        glowGrad.addColorStop(0.5, 'rgba(212,175,135,0.06)');
-        glowGrad.addColorStop(0.8, 'rgba(180,150,210,0.1)');
+        glowGrad.addColorStop(0.5, 'rgba(212,175,135,0.05)');
         glowGrad.addColorStop(1, 'rgba(212,175,135,0)');
         ctx.fillStyle = glowGrad;
-        ctx.beginPath(); ctx.arc(cx, cy, r * 1.18, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, r * 1.15, 0, Math.PI * 2); ctx.fill();
     }
 
     function init3DPlanets() {
@@ -492,18 +638,15 @@
         var planetSize = isMobile ? 90 : 120;
         var canvasSize = planetSize * 2;
 
-        leftPlanet.innerHTML = '';
-        rightPlanet.innerHTML = '';
+        leftPlanet.innerHTML = ''; rightPlanet.innerHTML = '';
 
         planetLeftCanvas = document.createElement('canvas');
-        planetLeftCanvas.width = canvasSize;
-        planetLeftCanvas.height = canvasSize;
+        planetLeftCanvas.width = canvasSize; planetLeftCanvas.height = canvasSize;
         planetLeftCanvas.style.cssText = 'width:100%;height:100%;border-radius:50%;display:block';
         planetLeftCtx = planetLeftCanvas.getContext('2d');
 
         planetRightCanvas = document.createElement('canvas');
-        planetRightCanvas.width = canvasSize;
-        planetRightCanvas.height = canvasSize;
+        planetRightCanvas.width = canvasSize; planetRightCanvas.height = canvasSize;
         planetRightCanvas.style.cssText = 'width:100%;height:100%;border-radius:50%;display:block';
         planetRightCtx = planetRightCanvas.getContext('2d');
 
@@ -535,11 +678,12 @@
 
         function animatePlanets() {
             planetRenderSkip++;
+            // 大幅降频：仅在需要时渲染
             if (planetRenderSkip % planetRenderInterval !== 0) { requestAnimationFrame(animatePlanets); return; }
 
-            planetMouseX += (planetTargetMX - planetMouseX) * 0.05;
-            planetMouseY += (planetTargetMY - planetMouseY) * 0.05;
-            planetRotation += 0.004;
+            planetMouseX += (planetTargetMX - planetMouseX) * 0.04;
+            planetMouseY += (planetTargetMY - planetMouseY) * 0.04;
+            planetRotation += 0.004 * planetRenderInterval;
 
             var dynamicLight = {
                 x: lightDir.x + planetMouseX * 0.3,
@@ -556,42 +700,33 @@
 
             var leftW = document.getElementById('left-planet-wrapper');
             var rightW = document.getElementById('right-planet-wrapper');
-            if (leftW) leftW.style.transform = 'translate3d(' + (planetMouseX * 12) + 'px, ' + (planetMouseY * 8) + 'px, 0)';
-            if (rightW) rightW.style.transform = 'translate3d(' + (-planetMouseX * 12) + 'px, ' + (planetMouseY * 8) + 'px, 0)';
+            if (leftW) leftW.style.transform = 'translate3d(' + (planetMouseX * 10) + 'px, ' + (planetMouseY * 6) + 'px, 0)';
+            if (rightW) rightW.style.transform = 'translate3d(' + (-planetMouseX * 10) + 'px, ' + (planetMouseY * 6) + 'px, 0)';
 
             requestAnimationFrame(animatePlanets);
         }
         animatePlanets();
     }
 
-    // ============ 时光罗盘 (精确日期差，永不出现负数) ============
+    // ============ 时光罗盘 ============
     function updateChrono() {
         var now = new Date();
-        // Precise calendar-based difference — no floating-point, no negatives
         var years = now.getFullYear() - SINCE_DATE.getFullYear();
         var months = now.getMonth() - SINCE_DATE.getMonth();
         var days = now.getDate() - SINCE_DATE.getDate();
         var hours = now.getHours() - SINCE_DATE.getHours();
         var minutes = now.getMinutes() - SINCE_DATE.getMinutes();
         var seconds = now.getSeconds() - SINCE_DATE.getSeconds();
-
         if (seconds < 0) { seconds += 60; minutes--; }
         if (minutes < 0) { minutes += 60; hours--; }
         if (hours < 0) { hours += 24; days--; }
         if (days < 0) {
             var prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-            days += prevMonthLastDay;
-            months--;
+            days += prevMonthLastDay; months--;
         }
         if (months < 0) { months += 12; years--; }
-        // Safety clamp — never show negatives
-        years = Math.max(0, years);
-        months = Math.max(0, months);
-        days = Math.max(0, days);
-        hours = Math.max(0, hours);
-        minutes = Math.max(0, minutes);
-        seconds = Math.max(0, seconds);
-
+        years = Math.max(0, years); months = Math.max(0, months); days = Math.max(0, days);
+        hours = Math.max(0, hours); minutes = Math.max(0, minutes); seconds = Math.max(0, seconds);
         document.getElementById('c-years').textContent = String(years).padStart(2, '0');
         document.getElementById('c-months').textContent = String(months).padStart(2, '0');
         document.getElementById('c-days').textContent = String(days).padStart(2, '0');
@@ -605,7 +740,7 @@
         setInterval(updateChrono, 1000);
     }
 
-    // ============ 3D 失重空间阵列相册 ============
+    // ============ 相册数据 ============
     function generateCosmicArt(index) {
         var c = document.createElement('canvas');
         c.width = 400; c.height = 500;
@@ -664,12 +799,9 @@
         div.className = 'gallery-item';
         div.setAttribute('data-index', index);
 
-        // Random Z-depth for 3D space array (-150 to 100px)
         var zDepth = (Math.random() * 250 - 150).toFixed(0);
         div.style.setProperty('--z-depth', zDepth + 'px');
         div.style.transform = 'translate3d(0, 0, ' + zDepth + 'px)';
-
-        // Start invisible for entrance animation (IntersectionObserver will trigger)
         div.style.opacity = '0';
 
         var img = document.createElement('img');
@@ -678,34 +810,27 @@
         img.loading = 'lazy';
         div.appendChild(img);
 
-        // Scan line overlay
         var scanLine = document.createElement('div');
         scanLine.className = 'scan-line';
         div.appendChild(scanLine);
 
-        // Frame number overlay
         var frameNum = document.createElement('div');
         frameNum.className = 'gallery-frame-num';
         frameNum.textContent = '#' + String(index).padStart(2, '0');
         div.appendChild(frameNum);
 
-        // Cosmic glow overlay for entrance effect
         var glowOverlay = document.createElement('div');
         glowOverlay.className = 'cosmic-glow-overlay';
         div.appendChild(glowOverlay);
 
-        // Track whether entrance animation has played
         div._entrancePlayed = false;
 
-        // 3D magnetic tilt on hover (GPU accelerated)
         div.addEventListener('mousemove', function(e) {
             if (!div._entrancePlayed) return;
             var rect = div.getBoundingClientRect();
-            var x = e.clientX - rect.left;
-            var y = e.clientY - rect.top;
+            var x = e.clientX - rect.left, y = e.clientY - rect.top;
             var cx = rect.width / 2, cy = rect.height / 2;
-            var rx = (y - cy) / cy * 15;
-            var ry = (x - cx) / cx * -15;
+            var rx = (y - cy) / cy * 15, ry = (x - cx) / cx * -15;
             div.style.transform = 'translate3d(0, 0, 60px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) scale(1.04)';
             div.style.zIndex = '200';
             div.style.boxShadow = '0 30px 80px rgba(212,175,135,0.3), 0 0 40px rgba(180,150,210,0.15)';
@@ -717,7 +842,6 @@
             div.style.boxShadow = '';
         });
 
-        // Click to open portal
         div.addEventListener('click', function() {
             if (!div._entrancePlayed) return;
             openPortal(src, index);
@@ -729,7 +853,6 @@
     function initGallery() {
         var grid = document.getElementById('gallery-grid');
         if (!grid) return;
-
         var totalPhotos = window.TOTAL_REAL_PHOTOS || 11;
         var loaded = 0;
 
@@ -752,54 +875,38 @@
         function renderGallery(grid) {
             galleryPhotos.sort(function(a, b) { return a.index - b.index; });
             galleryPhotos.forEach(function(photo) {
-                var item = createGalleryItem(photo.src, photo.index);
-                grid.appendChild(item);
+                grid.appendChild(createGalleryItem(photo.src, photo.index));
             });
-
-            // Kick off IntersectionObserver entrance animations
             initEntranceAnimations();
-
-            // Event delegation fallback
             grid.addEventListener('click', function(e) {
                 var card = e.target.closest('.gallery-item');
-                if (!card) return;
-                if (!card._entrancePlayed) return;
+                if (!card || !card._entrancePlayed) return;
                 var idx = parseInt(card.getAttribute('data-index'));
                 if (!idx) return;
                 var photo = galleryPhotos.find(function(p) { return p.index === idx; });
-                if (photo && !portalActive) {
-                    openPortal(photo.src, photo.index);
-                }
+                if (photo && !portalActive) openPortal(photo.src, photo.index);
             });
         }
     }
 
-    // ============ 宇宙尘埃凝结入场动画 (IntersectionObserver) ============
+    // ============ 宇宙尘埃凝结入场动画 ============
     function initEntranceAnimations() {
         if (!window.IntersectionObserver) {
-            // Fallback: just show all items
             document.querySelectorAll('.gallery-item').forEach(function(item) {
-                item.style.opacity = '1';
-                item._entrancePlayed = true;
+                item.style.opacity = '1'; item._entrancePlayed = true;
             });
             return;
         }
-
         var entranceObserver = new IntersectionObserver(function(entries) {
             entries.forEach(function(entry) {
                 if (entry.isIntersecting) {
                     var item = entry.target;
                     if (item._entrancePlayed) return;
                     item._entrancePlayed = true;
-
                     var idx = parseInt(item.getAttribute('data-index')) || 0;
-                    // Stagger delay: each card in a "row" gets a slightly different delay
                     var staggerDelay = (idx % 4) * 80;
-
-                    // Apply entrance class with delay
                     setTimeout(function() {
                         item.classList.add('cosmic-entrance');
-                        // After animation completes, settle into normal state
                         item.addEventListener('animationend', function onAnimEnd(e) {
                             if (e.animationName === 'cosmicMaterialize') {
                                 item.classList.remove('cosmic-entrance');
@@ -809,44 +916,27 @@
                             }
                         });
                     }, staggerDelay);
-
                     entranceObserver.unobserve(item);
                 }
             });
-        }, {
-            threshold: 0.12,
-            rootMargin: '0px 0px -40px 0px'
-        });
-
-        document.querySelectorAll('.gallery-item').forEach(function(item) {
-            entranceObserver.observe(item);
-        });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.gallery-item').forEach(function(item) { entranceObserver.observe(item); });
     }
 
-    // ============ 3D 深度视差更新 (由 lerp loop 驱动) ============
+    // ============ 3D 深度视差更新 ============
     function updateGalleryDepth() {
         var items = document.querySelectorAll('.gallery-item');
         var viewH = window.innerHeight;
         var scrollY = smoothScrollY || window.pageYOffset || 0;
-
         items.forEach(function(item) {
-            // Skip items still in entrance animation
             if (!item._entrancePlayed) return;
-
             var rect = item.getBoundingClientRect();
             var itemCenter = rect.top + rect.height / 2;
-            var viewCenter = viewH / 2;
-
-            // Distance from viewport center (-1 to 1)
-            var distFromCenter = (itemCenter - viewCenter) / (viewH * 0.7);
+            var distFromCenter = (itemCenter - viewH / 2) / (viewH * 0.7);
             distFromCenter = Math.max(-1, Math.min(1, distFromCenter));
-
-            // Cards far from center drift deeper into Z-space
             var zOffset = Math.abs(distFromCenter) * 120;
             var opacity = 1 - Math.abs(distFromCenter) * 0.5;
-
             var currentTransform = item.style.transform || '';
-            // Only update if not being hovered and entrance is done
             if (currentTransform.indexOf('rotateX') === -1 && item.classList.contains('entrance-done')) {
                 var baseZ = parseFloat(item.style.getPropertyValue('--z-depth')) || 0;
                 item.style.transform = 'translate3d(0, 0, ' + (baseZ - zOffset) + 'px) scale(' + (1 - Math.abs(distFromCenter) * 0.1) + ')';
@@ -879,9 +969,7 @@
         var items = document.querySelectorAll('.gallery-item');
         portalSourceEl = null;
         items.forEach(function(item) {
-            if (item.querySelector('img') && item.querySelector('img').src === src) {
-                portalSourceEl = item;
-            }
+            if (item.querySelector('img') && item.querySelector('img').src === src) portalSourceEl = item;
         });
         portalImg.src = src;
         portalMeta.textContent = '[ MEMORY ARCHIVE · FRAME #' + String(index).padStart(3,'0') + ' ]  ◆  ' + SINCE_DATE.getFullYear() + ' ~ ∞';
@@ -907,14 +995,12 @@
         main.style.transform = 'scale(1)';
         main.style.transition = 'transform 0.6s ease';
         portalOverlay.classList.remove('active');
-
-        // Fully unlock all scroll constraints
         document.body.style.overflow = '';
         document.body.style.overflowY = 'auto';
         document.body.style.overflowX = 'hidden';
         document.documentElement.style.overflowY = 'auto';
 
-        // Thoroughly reset lerp scroll state to prevent deadlocks
+        // 彻底重置滚动状态
         targetScrollY = currentScrollY;
         scrollDamping = 0.09;
         scrollVelocity = 0;
@@ -922,11 +1008,9 @@
         lastScrollCheck = performance.now();
         lastWheelTime = 0;
 
-        // Restore body height for lerp scroll
         var newH = main.scrollHeight;
         if (newH > 0) document.body.style.height = newH + 'px';
 
-        // Restore lerp-friendly overflow after a microtask delay
         setTimeout(function() {
             document.body.style.overflowY = 'scroll';
             document.body.style.overflowX = 'hidden';
@@ -941,7 +1025,7 @@
         }
     }
 
-    // ============ 物理惯性视差滚动 (GPU加速版, 多重安全防护, 抗死锁) ============
+    // ============ 物理惯性视差滚动 (多重安全防护, 全时健康监测) ============
     var smoothScrollY = 0;
     var currentScrollY = 0;
     var targetScrollY = 0;
@@ -952,6 +1036,7 @@
     var lastWheelTime = 0;
     var lastScrollCheck = 0;
     var scrollStallFrames = 0;
+    var scrollHealthTimer = null;
 
     function clampScroll(val) {
         var maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
@@ -964,18 +1049,17 @@
         document.body.style.overflowY = 'scroll';
         document.body.style.overflowX = 'hidden';
 
-        // === WHEEL HANDLER — velocity-capped with burst protection ===
+        // Wheel handler — velocity-capped
         window.addEventListener('wheel', function(e) {
+            if (portalActive) return;
             e.preventDefault();
             var now = performance.now();
-            // Clamp per-event delta to prevent trackpad/mouse burst overflow
-            var cappedDelta = Math.max(-120, Math.min(120, e.deltaY));
-            // If events arrive faster than 16ms apart, blend momentum to smooth bursts
+            var cappedDelta = Math.max(-100, Math.min(100, e.deltaY));
             var dt = now - lastWheelTime;
             if (dt < 16 && dt > 0) {
-                scrollVelocity = scrollVelocity * 0.55 + cappedDelta * 0.45;
+                scrollVelocity = scrollVelocity * 0.5 + cappedDelta * 0.5;
             } else {
-                scrollVelocity = scrollVelocity * 0.3 + cappedDelta * 0.7;
+                scrollVelocity = scrollVelocity * 0.25 + cappedDelta * 0.75;
             }
             lastWheelTime = now;
             targetScrollY += scrollVelocity;
@@ -984,14 +1068,16 @@
             scrollStallFrames = 0;
         }, { passive: false });
 
-        // === TOUCH HANDLERS ===
+        // Touch handlers
         var touchStartY = 0, touchStartScroll = 0;
         window.addEventListener('touchstart', function(e) {
+            if (portalActive) return;
             touchStartY = e.touches[0].clientY;
             touchStartScroll = targetScrollY;
             scrollStallFrames = 0;
         }, { passive: false });
         window.addEventListener('touchmove', function(e) {
+            if (portalActive) return;
             e.preventDefault();
             var dy = touchStartY - e.touches[0].clientY;
             targetScrollY = touchStartScroll + dy;
@@ -999,7 +1085,7 @@
             lastScrollCheck = performance.now();
         }, { passive: false });
 
-        // === RESIZE OBSERVER — keep body height in sync ===
+        // ResizeObserver
         if (window.ResizeObserver) {
             var ro = new ResizeObserver(function() {
                 var newH = main.scrollHeight;
@@ -1012,18 +1098,46 @@
             ro.observe(main);
         }
 
-        // === LERP LOOP — with deadlock detection & auto-recovery ===
+        // === 滚动健康监测：每2秒检查一次系统是否存活 ===
+        scrollHealthTimer = setInterval(function() {
+            var now = performance.now();
+            var distance = Math.abs(targetScrollY - currentScrollY);
+            // 如果超过3秒没有收到输入信号，且lerp还在收敛中 → 强制复位
+            if (distance > 0.5 && now - lastScrollCheck > 3000) {
+                currentScrollY = targetScrollY;
+                scrollVelocity = 0;
+                scrollDamping = 0.09;
+                scrollStallFrames = 0;
+            }
+            // 如果overflowY被意外修改(比如被portal残留修改)，恢复正确值
+            if (!portalActive && document.body.style.overflowY !== 'scroll') {
+                document.body.style.overflowY = 'scroll';
+                document.body.style.overflowX = 'hidden';
+            }
+            // 确保body高度与内容匹配
+            var contentH = main.scrollHeight;
+            if (contentH > 0 && Math.abs(parseInt(document.body.style.height) - contentH) > 50) {
+                document.body.style.height = contentH + 'px';
+                targetScrollY = clampScroll(targetScrollY);
+                currentScrollY = clampScroll(currentScrollY);
+            }
+        }, 2000);
+
         function lerpLoop(ts) {
+            // Portal打开时跳过滚动更新，保持主内容在当前位置
+            if (portalActive) {
+                requestAnimationFrame(lerpLoop);
+                return;
+            }
+
             var distance = Math.abs(targetScrollY - currentScrollY);
 
-            // DEADLOCK DETECTION: if scroll hasn't converged 600ms after last input
+            // 死锁检测与恢复
             if (distance > 0.5) {
-                if (ts - lastScrollCheck > 600) {
-                    // Input has stopped but lerp hasn't converged — force faster damping
+                if (ts - lastScrollCheck > 500) {
                     scrollDamping = 0.3;
                     scrollStallFrames++;
-                    if (scrollStallFrames > 10) {
-                        // HARD RECOVERY: instant snap + full reset
+                    if (scrollStallFrames > 8) {
                         currentScrollY = targetScrollY;
                         scrollVelocity = 0;
                         scrollDamping = 0.09;
@@ -1034,31 +1148,25 @@
                     scrollDamping = 0.09;
                 }
             } else {
-                // Converged — clean reset
                 currentScrollY = targetScrollY;
                 scrollVelocity = 0;
                 scrollDamping = 0.09;
                 scrollStallFrames = 0;
             }
 
-            // Lerp step
             currentScrollY += (targetScrollY - currentScrollY) * scrollDamping;
-            if (distance < 0.05) {
-                currentScrollY = targetScrollY;
-                scrollVelocity = 0;
-            }
+            if (distance < 0.05) { currentScrollY = targetScrollY; scrollVelocity = 0; }
             smoothScrollY = currentScrollY;
 
-            // GPU-accelerated transforms (compositor-only — never triggers layout/repaint)
+            // GPU transforms (compositor-only)
             main.style.transform = 'translate3d(0, ' + (-currentScrollY) + 'px, 0)';
             if (parallaxBg) parallaxBg.style.transform = 'translate3d(0, ' + (-currentScrollY * 0.15) + 'px, 0)';
             if (parallaxMid) parallaxMid.style.transform = 'translate3d(0, ' + (-currentScrollY * 0.08) + 'px, 0)';
             canvas.style.transform = 'translate3d(0, ' + (-currentScrollY * 0.03) + 'px, 0)';
 
-            // Drive gallery depth from lerp loop (NOT native scroll event)
             updateGalleryDepth();
 
-            // Fallback height sync for browsers without ResizeObserver
+            // Fallback height sync
             if (typeof ResizeObserver === 'undefined') {
                 var newH = main.scrollHeight;
                 if (newH > 0 && Math.abs(document.body.scrollHeight - newH) > 10) {
@@ -1072,7 +1180,7 @@
         requestAnimationFrame(lerpLoop);
     }
 
-    // ============ Starlight Echoes 超维星轨情感回响 ============
+    // ============ Starlight Echoes ============
     var presetEchoes = [
         { coords: '2025.06.23 · 相遇坐标', author: '时空观测者', body: '那天晚风和你的裙摆一样温柔，宇宙的引力从此有了确切的方向。' },
         { coords: 'LOVE-SYSTEM · 观测日志', author: '星河服务器', body: '爱情恒定引力系数监测正常：双星共振已稳定维持，心动值突破临界点。' },
@@ -1088,16 +1196,11 @@
     var userEchoes = [], echoesData = [];
 
     function loadEchoes() {
-        try {
-            var stored = localStorage.getItem('starlight-echoes');
-            if (stored) { userEchoes = JSON.parse(stored); }
-        } catch(e) { userEchoes = []; }
+        try { var stored = localStorage.getItem('starlight-echoes'); if (stored) userEchoes = JSON.parse(stored); } catch(e) { userEchoes = []; }
         echoesData = userEchoes.concat(presetEchoes);
         if (echoesData.length === 0) echoesData = presetEchoes.slice();
     }
-    function saveEchoes() {
-        try { localStorage.setItem('starlight-echoes', JSON.stringify(userEchoes)); } catch(e) {}
-    }
+    function saveEchoes() { try { localStorage.setItem('starlight-echoes', JSON.stringify(userEchoes)); } catch(e) {} }
 
     function createEchoCapsule(echo, isNew) {
         var capsule = document.createElement('div');
@@ -1140,11 +1243,7 @@
         var ex = window.innerWidth / 2, ey = window.innerHeight / 2;
         var particles = [];
         for (var i = 0; i < 30; i++) {
-            particles.push({
-                x: sx, y: sy, tx: ex, ty: ey,
-                size: Math.random() * 4 + 2, life: 1, delay: i * 15,
-                color: 'hsla(' + (30 + Math.random()*30) + ', 80%, ' + (60 + Math.random()*30) + '%,'
-            });
+            particles.push({ x: sx, y: sy, tx: ex, ty: ey, size: Math.random() * 4 + 2, life: 1, delay: i * 15, color: 'hsla(' + (30 + Math.random()*30) + ', 80%, ' + (60 + Math.random()*30) + '%,' });
         }
         var startTime = Date.now();
         function animateParticles() {
@@ -1156,27 +1255,15 @@
                 var t = Math.min(1, (elapsed - p.delay) / 800);
                 var midX = (sx + ex) / 2 + (Math.sin(t * Math.PI) * 200);
                 var midY = Math.min(sy, ey) - 150 - t * 100;
-                var bx = (1-t)*(1-t)*sx + 2*(1-t)*t*midX + t*t*ex;
-                var by = (1-t)*(1-t)*sy + 2*(1-t)*t*midY + t*t*ey;
-                p.x = bx; p.y = by; p.life = 1 - t;
-                pCtx.beginPath();
-                pCtx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+                p.x = (1-t)*(1-t)*sx + 2*(1-t)*t*midX + t*t*ex;
+                p.y = (1-t)*(1-t)*sy + 2*(1-t)*t*midY + t*t*ey;
+                p.life = 1 - t;
+                pCtx.beginPath(); pCtx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
                 pCtx.fillStyle = p.color + (p.life * 0.8) + ')'; pCtx.fill();
-                if (t > 0.7) {
-                    pCtx.beginPath(); pCtx.arc(ex, ey, (1-t) * 80, 0, Math.PI*2);
-                    pCtx.strokeStyle = 'rgba(212,175,135,' + ((t - 0.7) / 0.3 * 0.5) + ')';
-                    pCtx.lineWidth = 1.5; pCtx.stroke();
-                }
                 if (t < 1) allDone = false;
             }
             if (!allDone) { requestAnimationFrame(animateParticles); }
-            else {
-                pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
-                pCtx.beginPath(); pCtx.arc(ex, ey, 60, 0, Math.PI*2);
-                pCtx.strokeStyle = 'rgba(212,175,135,0.6)'; pCtx.lineWidth = 2; pCtx.stroke();
-                setTimeout(function() { pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height); }, 300);
-                if (callback) callback();
-            }
+            else { pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height); if (callback) callback(); }
         }
         requestAnimationFrame(animateParticles);
     }
