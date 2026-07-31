@@ -4,11 +4,12 @@
     var SINCE_DATE = new Date('2026-01-11T00:00:00');
     window.TOTAL_REAL_PHOTOS = 11; // Auto-generated from photo import
 
-    // ============ 星空粒子系统 (GPU优化版) ============
+    // ============ 星空粒子系统 (智能分级渲染) ============
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
     var particles = [], mouse = { x: -1000, y: -1000 }, animationId;
     var isMobile = window.innerWidth < 768;
+    var starFrameSkip = 0, starFrameInterval = isMobile ? 2 : 1;
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -17,18 +18,21 @@
     }
     function initParticles() {
         var area = canvas.width * canvas.height;
-        // Ultra-light: minimal particles for smooth 60fps
-        var density = isMobile ? 0.00002 : 0.00004;
+        var density = isMobile ? 0.00005 : 0.0001;
         var count = Math.floor(area * density);
         particles = [];
         for (var i = 0; i < count; i++) {
             var p = {
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                size: Math.random() * 2 + 0.3,
+                size: Math.random() * 2.2 + 0.3,
                 baseX: 0, baseY: 0,
-                speed: Math.random() * 0.03 + 0.01,
-                opacity: Math.random() * 0.7 + 0.3
+                speed: Math.random() * 0.025 + 0.008,
+                opacity: Math.random() * 0.8 + 0.2,
+                twinkle: Math.random() < 0.15,
+                twinklePhase: Math.random() * Math.PI * 2,
+                twinkleSpeed: Math.random() * 0.02 + 0.005,
+                trail: []
             };
             p.baseX = p.x;
             p.baseY = p.y;
@@ -36,6 +40,8 @@
         }
     }
     function drawStars() {
+        starFrameSkip++;
+        if (starFrameSkip % starFrameInterval !== 0) { animationId = requestAnimationFrame(drawStars); return; }
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         var mx = mouse.x, my = mouse.y;
         for (var i = 0; i < particles.length; i++) {
@@ -43,20 +49,44 @@
             var dx = mx - p.x, dy = my - p.y;
             var dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 150) {
-                var force = (1 - dist / 150) * 0.6;
-                p.x += dx * force * 0.02;
-                p.y += dy * force * 0.02;
+                var force = (1 - dist / 150) * 0.5;
+                p.x += dx * force * 0.015;
+                p.y += dy * force * 0.015;
             }
-            p.x += (p.baseX - p.x) * 0.015;
-            p.y += (p.baseY - p.y) * 0.015;
-            p.baseX += p.speed * 0.2;
+            p.x += (p.baseX - p.x) * 0.012;
+            p.y += (p.baseY - p.y) * 0.012;
+            p.baseX += p.speed * 0.15;
             if (p.baseX > canvas.width + 20) p.baseX = -20;
             if (p.baseX < -20) p.baseX = canvas.width + 20;
+            // Twinkle
+            var alpha = p.opacity;
+            if (p.twinkle) {
+                p.twinklePhase += p.twinkleSpeed;
+                alpha = p.opacity * (0.5 + 0.5 * Math.sin(p.twinklePhase));
+            }
+            // Trail (2-point, lightweight)
+            p.trail.push({ x: p.x, y: p.y, a: alpha });
+            if (p.trail.length > 2) p.trail.shift();
+            if (p.trail.length > 1) {
+                var t0 = p.trail[0];
+                ctx.beginPath();
+                ctx.moveTo(t0.x, t0.y);
+                ctx.lineTo(p.x, p.y);
+                ctx.strokeStyle = 'rgba(180,150,210,' + (alpha * 0.3) + ')';
+                ctx.lineWidth = p.size * 0.6;
+                ctx.stroke();
+            }
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(212,175,135,' + p.opacity + ')';
+            ctx.fillStyle = 'rgba(212,175,135,' + alpha + ')';
             ctx.fill();
-        }
+            // Glow on larger stars
+            if (p.size > 1.4 && p.twinkle) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(212,175,135,' + (alpha * 0.12) + ')';
+                ctx.fill();
+            }
         }
         animationId = requestAnimationFrame(drawStars);
     }
@@ -343,35 +373,191 @@
         });
     }
 
-    // ============ 3D 行星视差 (纯CSS轻量版，零Canvas开销) ============
+    // ============ 3D 行星渲染引擎 (智能分层优化版) ============
+    var planetLeftCanvas, planetRightCanvas;
+    var planetLeftCtx, planetRightCtx;
+    var planetRotation = 0;
     var planetMouseX = 0, planetMouseY = 0;
     var planetTargetMX = 0, planetTargetMY = 0;
+    var planetRenderSkip = 0, planetRenderInterval = isMobile ? 2 : 1;
+    var planetCachedTextures = {};
+
+    function createProceduralTexture(isLeft) {
+        var cacheKey = isLeft ? 'left' : 'right';
+        if (planetCachedTextures[cacheKey]) return planetCachedTextures[cacheKey];
+        var w = 256, h = 128; // Half original res for perf
+        var off = document.createElement('canvas');
+        off.width = w; off.height = h;
+        var cx = off.getContext('2d');
+
+        var baseGrad = cx.createLinearGradient(0, 0, w, h);
+        baseGrad.addColorStop(0, 'hsl(35, 40%, ' + (isLeft ? '35%' : '40%') + ')');
+        baseGrad.addColorStop(0.3, 'hsl(45, 50%, ' + (isLeft ? '45%' : '50%') + ')');
+        baseGrad.addColorStop(0.5, 'hsl(55, 60%, ' + (isLeft ? '50%' : '55%') + ')');
+        baseGrad.addColorStop(0.7, 'hsl(30, 45%, ' + (isLeft ? '40%' : '45%') + ')');
+        baseGrad.addColorStop(1, 'hsl(25, 35%, ' + (isLeft ? '28%' : '32%') + ')');
+        cx.fillStyle = baseGrad;
+        cx.fillRect(0, 0, w, h);
+
+        // Surface bands
+        for (var y = 0; y < h; y += 2) {
+            var noise = Math.sin(y * 0.06) * 0.25 + Math.sin(y * 0.15 + 2) * 0.12 + Math.sin(y * 0.04 + 5) * 0.18;
+            cx.fillStyle = 'rgba(' + (isLeft ? '180,140,100' : '212,175,135') + ',' + (0.06 + noise * 0.25) + ')';
+            cx.fillRect(0, y, w, 2);
+        }
+
+        // Crater-like spots (reduced count)
+        for (var i = 0; i < 25; i++) {
+            var cxx = Math.random() * w, cyy = Math.random() * h;
+            var r = Math.random() * 10 + 2;
+            var grad = cx.createRadialGradient(cxx, cyy, r * 0.2, cxx, cyy, r);
+            grad.addColorStop(0, 'rgba(0,0,0,' + (Math.random() * 0.25 + 0.08) + ')');
+            grad.addColorStop(0.6, 'rgba(0,0,0,' + (Math.random() * 0.1) + ')');
+            grad.addColorStop(1, 'rgba(255,255,255,' + (Math.random() * 0.04) + ')');
+            cx.fillStyle = grad;
+            cx.beginPath(); cx.arc(cxx, cyy, r, 0, Math.PI * 2); cx.fill();
+        }
+
+        planetCachedTextures[cacheKey] = off;
+        return off;
+    }
+
+    function render3DPlanet(ctx, size, texture, rotationAngle, lightAngle) {
+        // Render at half-res for 4x fewer pixels, then browser scales up via canvas size
+        var r = size / 2;
+        var cx = r, cy = r;
+        var tw = texture.width, th = texture.height;
+        var texCtx = texture.getContext('2d');
+
+        // Pre-sample texture once into ImageData for fast random access
+        // Actually, getImageData per pixel is slow. Let's pre-read the whole thing.
+        var imgData = texCtx.getImageData(0, 0, tw, th);
+        var pixels = imgData.data;
+
+        ctx.clearRect(0, 0, size, size);
+        var step = 2; // Skip every other pixel = 4x speedup
+
+        for (var y = -r; y < r; y += step) {
+            var yNorm = y / r;
+            if (Math.abs(yNorm) > 0.97) continue;
+            var sliceWidth = Math.sqrt(Math.max(0, r * r - y * y));
+            var zNorm = sliceWidth / r;
+
+            for (var x = -sliceWidth; x < sliceWidth; x += step) {
+                var z = Math.sqrt(Math.max(0, r * r - x * x - y * y));
+                var u = ((Math.atan2(x, z) / (Math.PI * 2) + 0.5 + rotationAngle) % 1 + 1) % 1;
+                var v = Math.asin(yNorm) / Math.PI + 0.5;
+                var tx = Math.floor(u * (tw - 1));
+                var ty = Math.floor(v * (th - 1));
+                ty = ty < 0 ? 0 : (ty >= th ? th - 1 : ty);
+
+                var idx = (ty * tw + tx) * 4;
+                var pr = pixels[idx], pg = pixels[idx + 1], pb = pixels[idx + 2];
+
+                var nx = x / r, ny = yNorm, nz = z / r;
+                var len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+                nx /= len; ny /= len; nz /= len;
+
+                var diffuse = Math.max(0, nx * lightAngle.x + ny * lightAngle.y + nz * lightAngle.z);
+                diffuse = diffuse * 0.65 + 0.35;
+
+                var halfZ = nz + lightAngle.z + 1;
+                var specular = Math.pow(Math.max(0, halfZ / 2), 35) * 0.3;
+                var rim = Math.pow(1 - Math.abs(zNorm), 3) * 0.2;
+
+                var rVal = Math.min(255, pr * diffuse + specular * 255 + rim * 255);
+                var gVal = Math.min(255, pg * diffuse + specular * 220 + rim * 220);
+                var bVal = Math.min(255, pb * diffuse + specular * 180 + rim * 180);
+
+                ctx.fillStyle = 'rgb(' + Math.floor(rVal) + ',' + Math.floor(gVal) + ',' + Math.floor(bVal) + ')';
+                ctx.fillRect(cx + x, cy + y, step, step);
+            }
+        }
+
+        // Atmosphere glow
+        var glowGrad = ctx.createRadialGradient(cx, cy, r * 0.82, cx, cy, r * 1.18);
+        glowGrad.addColorStop(0, 'rgba(212,175,135,0)');
+        glowGrad.addColorStop(0.5, 'rgba(212,175,135,0.06)');
+        glowGrad.addColorStop(0.8, 'rgba(180,150,210,0.1)');
+        glowGrad.addColorStop(1, 'rgba(212,175,135,0)');
+        ctx.fillStyle = glowGrad;
+        ctx.beginPath(); ctx.arc(cx, cy, r * 1.18, 0, Math.PI * 2); ctx.fill();
+    }
 
     function init3DPlanets() {
-        var stage = document.getElementById('planets-stage');
-        if (!stage) return;
+        var leftPlanet = document.getElementById('planet-left');
+        var rightPlanet = document.getElementById('planet-right');
+        if (!leftPlanet || !rightPlanet) return;
 
-        stage.addEventListener('mousemove', function(e) {
-            var rect = stage.getBoundingClientRect();
-            planetTargetMX = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
-            planetTargetMY = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);
-        });
-        stage.addEventListener('mouseleave', function() { planetTargetMX = 0; planetTargetMY = 0; });
-        stage.addEventListener('touchmove', function(e) {
-            var rect = stage.getBoundingClientRect();
-            planetTargetMX = (e.touches[0].clientX - rect.left - rect.width / 2) / (rect.width / 2);
-            planetTargetMY = (e.touches[0].clientY - rect.top - rect.height / 2) / (rect.height / 2);
-        }, { passive: true });
-        stage.addEventListener('touchend', function() { planetTargetMX = 0; planetTargetMY = 0; });
+        var planetSize = isMobile ? 90 : 120;
+        var canvasSize = planetSize * 2;
+
+        leftPlanet.innerHTML = '';
+        rightPlanet.innerHTML = '';
+
+        planetLeftCanvas = document.createElement('canvas');
+        planetLeftCanvas.width = canvasSize;
+        planetLeftCanvas.height = canvasSize;
+        planetLeftCanvas.style.cssText = 'width:100%;height:100%;border-radius:50%;display:block';
+        planetLeftCtx = planetLeftCanvas.getContext('2d');
+
+        planetRightCanvas = document.createElement('canvas');
+        planetRightCanvas.width = canvasSize;
+        planetRightCanvas.height = canvasSize;
+        planetRightCanvas.style.cssText = 'width:100%;height:100%;border-radius:50%;display:block';
+        planetRightCtx = planetRightCanvas.getContext('2d');
+
+        leftPlanet.appendChild(planetLeftCanvas);
+        rightPlanet.appendChild(planetRightCanvas);
+
+        var leftTex = createProceduralTexture(true);
+        var rightTex = createProceduralTexture(false);
+
+        var lightDir = { x: 0.55, y: -0.25, z: 0.7 };
+        var ll = Math.sqrt(lightDir.x * lightDir.x + lightDir.y * lightDir.y + lightDir.z * lightDir.z);
+        lightDir.x /= ll; lightDir.y /= ll; lightDir.z /= ll;
+
+        var stage = document.getElementById('planets-stage');
+        if (stage) {
+            stage.addEventListener('mousemove', function(e) {
+                var rect = stage.getBoundingClientRect();
+                planetTargetMX = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
+                planetTargetMY = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);
+            });
+            stage.addEventListener('mouseleave', function() { planetTargetMX = 0; planetTargetMY = 0; });
+            stage.addEventListener('touchmove', function(e) {
+                var rect = stage.getBoundingClientRect();
+                planetTargetMX = (e.touches[0].clientX - rect.left - rect.width / 2) / (rect.width / 2);
+                planetTargetMY = (e.touches[0].clientY - rect.top - rect.height / 2) / (rect.height / 2);
+            }, { passive: true });
+            stage.addEventListener('touchend', function() { planetTargetMX = 0; planetTargetMY = 0; });
+        }
 
         function animatePlanets() {
+            planetRenderSkip++;
+            if (planetRenderSkip % planetRenderInterval !== 0) { requestAnimationFrame(animatePlanets); return; }
+
             planetMouseX += (planetTargetMX - planetMouseX) * 0.05;
             planetMouseY += (planetTargetMY - planetMouseY) * 0.05;
+            planetRotation += 0.004;
+
+            var dynamicLight = {
+                x: lightDir.x + planetMouseX * 0.3,
+                y: lightDir.y - planetMouseY * 0.3,
+                z: lightDir.z
+            };
+            var dl = Math.sqrt(dynamicLight.x * dynamicLight.x + dynamicLight.y * dynamicLight.y + dynamicLight.z * dynamicLight.z);
+            dynamicLight.x /= dl; dynamicLight.y /= dl; dynamicLight.z /= dl;
+
+            render3DPlanet(planetLeftCtx, canvasSize, leftTex, planetRotation, dynamicLight);
+            render3DPlanet(planetRightCtx, canvasSize, rightTex, -planetRotation * 0.8, {
+                x: -dynamicLight.x, y: dynamicLight.y, z: dynamicLight.z
+            });
 
             var leftW = document.getElementById('left-planet-wrapper');
             var rightW = document.getElementById('right-planet-wrapper');
-            if (leftW) leftW.style.transform = 'translate3d(' + (planetMouseX * 10) + 'px, ' + (planetMouseY * 6) + 'px, 0)';
-            if (rightW) rightW.style.transform = 'translate3d(' + (-planetMouseX * 10) + 'px, ' + (planetMouseY * 6) + 'px, 0)';
+            if (leftW) leftW.style.transform = 'translate3d(' + (planetMouseX * 12) + 'px, ' + (planetMouseY * 8) + 'px, 0)';
+            if (rightW) rightW.style.transform = 'translate3d(' + (-planetMouseX * 12) + 'px, ' + (planetMouseY * 8) + 'px, 0)';
 
             requestAnimationFrame(animatePlanets);
         }
