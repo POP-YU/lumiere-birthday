@@ -2,6 +2,7 @@
     'use strict';
     var GF_NAME = '花花';
     var SINCE_DATE = new Date('2026-10-17T00:00:00');
+    var TOTAL_REAL_PHOTOS = 11; // Manifest: actual photos in images/
 
     // ============ 星空粒子系统 ============
     var canvas = document.getElementById('starfield-canvas');
@@ -82,56 +83,29 @@
     var main = document.getElementById('main-content');
     var gate = document.getElementById('universe-gate');
     var progress = 0;
-    var photoCount = 0;
-    var photoPaths = [];
-
-    // 预设照片列表
-    for (var pi = 1; pi <= 100; pi++) {
-        photoPaths.push('images/' + pi + '.jpg');
-    }
 
     function simulateLoading() {
-        if (progress < 85) {
-            progress += Math.random() * 12 + 3;
-            if (progress > 85) progress = 85;
+        // Fast deterministic loading — no probe needed since we know TOTAL_REAL_PHOTOS
+        var startTime = Date.now();
+        var duration = 1800; // 1.8s aesthetic loading animation
+        function tick() {
+            var elapsed = Date.now() - startTime;
+            progress = Math.min(100, Math.floor((elapsed / duration) * 100));
             fill.style.width = progress + '%';
             loaderPct.textContent = Math.floor(progress);
-            requestAnimationFrame(function() {
-                setTimeout(simulateLoading, 120 + Math.random() * 120);
-            });
-        } else {
-            // 探测照片
-            probePhotos(0);
+            if (progress < 100) {
+                requestAnimationFrame(function() { setTimeout(tick, 50); });
+            } else {
+                finishLoading();
+            }
         }
-    }
-
-    function probePhotos(idx) {
-        if (idx >= 50 || photoCount >= photoPaths.length) {
-            finishLoading();
-            return;
-        }
-        var src = photoPaths[idx];
-        var img = new Image();
-        var done = false;
-        img.onload = function() {
-            if (!done) { done = true; photoCount++; updateProgressFromProbe(); probePhotos(idx + 1); }
-        };
-        img.onerror = function() {
-            if (!done) { done = true; updateProgressFromProbe(); probePhotos(idx + 1); }
-        };
-        img.src = src;
-        setTimeout(function() {
-            if (!done) { done = true; updateProgressFromProbe(); probePhotos(idx + 1); }
-        }, 800);
-    }
-
-    function updateProgressFromProbe() {
-        progress = Math.min(100, 85 + Math.floor((photoCount / Math.max(1, Math.min(50, photoPaths.length))) * 15));
-        fill.style.width = progress + '%';
-        loaderPct.textContent = Math.floor(progress);
+        tick();
     }
 
     function finishLoading() {
+        if (loader._finished) return; // Prevent double-fire
+        loader._finished = true;
+        if (loaderSafetyTimeout) clearTimeout(loaderSafetyTimeout);
         progress = 100;
         fill.style.width = '100%';
         loaderPct.textContent = '100';
@@ -144,33 +118,59 @@
 
     simulateLoading();
 
+    // Global safety timeout: force-finish loader after 15s max
+    // Prevents indefinite hang if probes get stuck on slow networks
+    var loaderSafetyTimeout = setTimeout(function() {
+        if (!gate.classList.contains('hidden')) {
+            finishLoading();
+        }
+    }, 15000);
+
     // ============ 宇宙之门 ============
-    var gateBtn = document.getElementById('gate-btn');
     var musicPlaying = false;
-    gateBtn.addEventListener('click', function() {
-        if (musicPlaying) return;
-        musicPlaying = true;
-        // 开启音乐
-        startAmbientMusic();
-        // 隐藏gate
-        gate.style.opacity = '0';
-        setTimeout(function() {
-            gate.classList.add('hidden');
-            // 显示主内容
-            main.classList.remove('hidden');
-            main.style.opacity = '1';
-            main.style.visibility = 'visible';
-            document.body.style.overflow = '';
-            // 初始化各模块
-            initChronograph();
-            initGallery();
-            initEchoes();
-            initGift();
-            initSfx();
-            initLerpScroll();
-            initPortal();
-        }, 600);
-    });
+    var startBtn = document.querySelector('#gate-btn, .gate-btn');
+    if (startBtn) {
+        startBtn.onclick = null; // 清除原有冲突事件
+        startBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (musicPlaying) return;
+            musicPlaying = true;
+
+            // 1. 绝对优先：无条件揭开序幕，直接展开后续空间
+            loader.classList.add('space-fade-out');
+            loader.style.pointerEvents = 'none';
+            setTimeout(function() {
+                loader.classList.add('hidden');
+                loader.style.display = 'none';
+            }, 800);
+
+            // 2. 过渡星门淡出
+            gate.style.opacity = '0';
+            gate.style.pointerEvents = 'none';
+
+            // 3. 显示主宇宙（绝不因音频/资源失败而阻塞）
+            setTimeout(function() {
+                gate.classList.add('hidden');
+                main.classList.remove('hidden');
+                main.style.opacity = '1';
+                main.style.visibility = 'visible';
+                main.style.pointerEvents = 'auto';
+                document.body.style.overflow = '';
+
+                initChronograph();
+                initGallery();
+                initEchoes();
+                initGift();
+                initSfx();
+                initLerpScroll();
+                initPortal();
+
+                // 4. 异步尝试播放音乐——绝不允许音乐报错卡死界面
+                try { startAmbientMusic(); } catch(err) { console.warn('[LUMIÈRE] 音频引擎未就绪，视觉空间完全正常:', err); }
+            }, 600);
+        }, { once: true });
+    }
 
     // ============ 沉浸式氛围音乐引擎 ============
     var audioCtx, masterGain, reverbNode, musicNodes = [];
@@ -179,19 +179,31 @@
 
     function initAudioCtx() {
         if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            // Master gain
-            masterGain = audioCtx.createGain();
-            masterGain.gain.value = 0;
-            // 混响模拟：多级延迟
-            reverbNode = createReverb();
-            masterGain.connect(reverbNode);
-            reverbNode.connect(audioCtx.destination);
-            // 干信号也直接输出
-            var dryGain = audioCtx.createGain();
-            dryGain.gain.value = 0.4;
-            masterGain.connect(dryGain);
-            dryGain.connect(audioCtx.destination);
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch(e) {
+                console.warn('[LUMIÈRE] AudioContext not available:', e);
+                return null;
+            }
+            if (!audioCtx) return null;
+            try {
+                // Master gain
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0;
+                // 混响模拟：多级延迟
+                reverbNode = createReverb();
+                masterGain.connect(reverbNode);
+                reverbNode.connect(audioCtx.destination);
+                // 干信号也直接输出
+                var dryGain = audioCtx.createGain();
+                dryGain.gain.value = 0.4;
+                masterGain.connect(dryGain);
+                dryGain.connect(audioCtx.destination);
+            } catch(e) {
+                console.warn('[LUMIÈRE] Audio routing setup failed:', e);
+                audioCtx = null;
+                return null;
+            }
         }
         return audioCtx;
     }
@@ -387,6 +399,7 @@
 
     function startAmbientMusic() {
         initAudioCtx();
+        if (!audioCtx) return; // AudioContext unavailable — visual space still works
         if (audioCtx.state === 'suspended') audioCtx.resume();
 
         // 主音量渐入 1.5s → 0.8 (80%)
@@ -408,6 +421,7 @@
         // 音乐按钮事件
         var musicBtn = document.getElementById('music-btn');
         musicBtn.addEventListener('click', function() {
+            if (!audioCtx) return; // Safety: no audio context available
             if (musicPlaying) {
                 // 暂停：淡出
                 masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.5);
@@ -443,6 +457,7 @@
         function playSfx(freq, type, dur, vol, filterType, filterFreq) {
             try {
                 var c = initAudioCtx();
+                if (!c) return; // Audio unavailable — skip sfx silently
                 var o = c.createOscillator();
                 var g = c.createGain();
                 var f = filterType ? c.createBiquadFilter() : null;
@@ -612,40 +627,47 @@
 
     function initGallery() {
         var grid = document.getElementById('gallery-grid');
-        var realCount = 0;
+        if (!grid) return;
 
-        // 批量加载真实照片
-        function loadBatch(startIdx) {
-            if (startIdx > 50 || realCount >= 50) {
-                finishGallery();
-                return;
-            }
-            var src = 'images/' + startIdx + '.jpg';
-            loadImage(src).then(function() {
-                realCount++;
-                galleryPhotos.push({ src: src, index: realCount });
-                loadBatch(startIdx + 1);
-            }).catch(function() {
-                loadBatch(startIdx + 1);
-            });
+        // Direct load using manifest constant — no probing, no onerror guessing
+        var loaded = 0;
+        for (var i = 1; i <= TOTAL_REAL_PHOTOS; i++) {
+            (function(idx) {
+                var src = 'images/' + idx + '.jpg';
+                loadImage(src).then(function() {
+                    galleryPhotos.push({ src: src, index: idx });
+                    loaded++;
+                    if (loaded === TOTAL_REAL_PHOTOS) renderGallery(grid);
+                }).catch(function() {
+                    // Fallback: generate cosmic art for missing photo
+                    var dataUrl = generateCosmicArt(idx);
+                    galleryPhotos.push({ src: dataUrl, index: idx, isGenerated: true });
+                    loaded++;
+                    if (loaded === TOTAL_REAL_PHOTOS) renderGallery(grid);
+                });
+            })(i);
         }
 
-        function finishGallery() {
-            if (galleryPhotos.length === 0) {
-                // 无照片，生成星云图
-                for (var i = 0; i < 12; i++) {
-                    var dataUrl = generateCosmicArt(i);
-                    galleryPhotos.push({ src: dataUrl, index: i + 1, isGenerated: true });
-                }
-            }
-            // 渲染
+        function renderGallery(grid) {
+            // Sort by index to preserve order
+            galleryPhotos.sort(function(a, b) { return a.index - b.index; });
             galleryPhotos.forEach(function(photo) {
                 var item = createGalleryItem(photo.src, photo.index);
                 grid.appendChild(item);
             });
-        }
 
-        loadBatch(1);
+            // Event delegation fallback — catches clicks on dynamically-added cards
+            grid.addEventListener('click', function(e) {
+                var card = e.target.closest('.gallery-item');
+                if (!card) return;
+                var idx = parseInt(card.getAttribute('data-index'));
+                if (!idx) return;
+                var photo = galleryPhotos.find(function(p) { return p.index === idx; });
+                if (photo && !portalActive) {
+                    openPortal(photo.src, photo.index);
+                }
+            });
+        }
     }
 
     // ============ 记忆维度沉浸展厅 ============
@@ -730,16 +752,21 @@
     var parallaxMid = document.getElementById('parallax-mid');
 
     function initLerpScroll() {
-        document.body.style.height = main.scrollHeight + 'px';
+        // Safety: ensure body height is at least viewport + buffer so scroll is never locked at 0
+        var initialH = Math.max(main.scrollHeight, window.innerHeight + 100);
+        document.body.style.height = initialH + 'px';
         document.body.style.overflowY = 'scroll';
         document.body.style.overflowX = 'hidden';
 
+        // Wheel → Lerp target (passive:false required for preventDefault)
         window.addEventListener('wheel', function(e) {
             e.preventDefault();
             targetScrollY += e.deltaY;
-            targetScrollY = Math.max(0, Math.min(targetScrollY, document.body.scrollHeight - window.innerHeight));
+            var maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
+            targetScrollY = Math.max(0, Math.min(targetScrollY, maxScroll));
         }, { passive: false });
 
+        // Touch drag
         var touchStartY = 0, touchStartScroll = 0;
         window.addEventListener('touchstart', function(e) {
             touchStartY = e.touches[0].clientY;
@@ -750,28 +777,42 @@
             e.preventDefault();
             var dy = touchStartY - e.touches[0].clientY;
             targetScrollY = touchStartScroll + dy;
-            targetScrollY = Math.max(0, Math.min(targetScrollY, document.body.scrollHeight - window.innerHeight));
+            var maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
+            targetScrollY = Math.max(0, Math.min(targetScrollY, maxScroll));
         }, { passive: false });
+
+        // Dynamic height recalculation via ResizeObserver
+        if (window.ResizeObserver) {
+            var ro = new ResizeObserver(function() {
+                var newH = main.scrollHeight;
+                if (newH > 0 && Math.abs(document.body.scrollHeight - newH) > 10) {
+                    document.body.style.height = newH + 'px';
+                }
+            });
+            ro.observe(main);
+        }
 
         function lerpLoop() {
             currentScrollY += (targetScrollY - currentScrollY) * scrollDamping;
             if (Math.abs(targetScrollY - currentScrollY) < 0.05) currentScrollY = targetScrollY;
             smoothScrollY = currentScrollY;
 
-            // 主内容位移
+            // Main content translation
             main.style.transform = 'translateY(' + (-currentScrollY) + 'px)';
 
-            // 视差层
+            // Parallax layers
             if (parallaxBg) parallaxBg.style.transform = 'translateY(' + (-currentScrollY * 0.15) + 'px)';
             if (parallaxMid) parallaxMid.style.transform = 'translateY(' + (-currentScrollY * 0.08) + 'px)';
 
-            // 星空偏移
+            // Starfield parallax
             canvas.style.transform = 'translateY(' + (-currentScrollY * 0.03) + 'px)';
 
-            // 更新body高度
-            var newH = main.scrollHeight;
-            if (Math.abs(document.body.scrollHeight - newH) > 10) {
-                document.body.style.height = newH + 'px';
+            // Fallback height update (for browsers without ResizeObserver)
+            if (typeof ResizeObserver === 'undefined') {
+                var newH = main.scrollHeight;
+                if (newH > 0 && Math.abs(document.body.scrollHeight - newH) > 10) {
+                    document.body.style.height = newH + 'px';
+                }
             }
 
             requestAnimationFrame(lerpLoop);
