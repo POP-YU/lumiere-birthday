@@ -669,6 +669,9 @@
         div.style.setProperty('--z-depth', zDepth + 'px');
         div.style.transform = 'translate3d(0, 0, ' + zDepth + 'px)';
 
+        // Start invisible for entrance animation (IntersectionObserver will trigger)
+        div.style.opacity = '0';
+
         var img = document.createElement('img');
         img.src = src;
         img.alt = 'Memory ' + index;
@@ -686,8 +689,17 @@
         frameNum.textContent = '#' + String(index).padStart(2, '0');
         div.appendChild(frameNum);
 
+        // Cosmic glow overlay for entrance effect
+        var glowOverlay = document.createElement('div');
+        glowOverlay.className = 'cosmic-glow-overlay';
+        div.appendChild(glowOverlay);
+
+        // Track whether entrance animation has played
+        div._entrancePlayed = false;
+
         // 3D magnetic tilt on hover (GPU accelerated)
         div.addEventListener('mousemove', function(e) {
+            if (!div._entrancePlayed) return;
             var rect = div.getBoundingClientRect();
             var x = e.clientX - rect.left;
             var y = e.clientY - rect.top;
@@ -699,6 +711,7 @@
             div.style.boxShadow = '0 30px 80px rgba(212,175,135,0.3), 0 0 40px rgba(180,150,210,0.15)';
         });
         div.addEventListener('mouseleave', function() {
+            if (!div._entrancePlayed) return;
             div.style.transform = 'translate3d(0, 0, ' + zDepth + 'px) rotateX(0) rotateY(0) scale(1)';
             div.style.zIndex = '';
             div.style.boxShadow = '';
@@ -706,6 +719,7 @@
 
         // Click to open portal
         div.addEventListener('click', function() {
+            if (!div._entrancePlayed) return;
             openPortal(src, index);
         });
 
@@ -742,14 +756,14 @@
                 grid.appendChild(item);
             });
 
-            // 3D scroll-driven depth animation
-            updateGalleryDepth();
-            window.addEventListener('scroll', updateGalleryDepth, { passive: true });
+            // Kick off IntersectionObserver entrance animations
+            initEntranceAnimations();
 
             // Event delegation fallback
             grid.addEventListener('click', function(e) {
                 var card = e.target.closest('.gallery-item');
                 if (!card) return;
+                if (!card._entrancePlayed) return;
                 var idx = parseInt(card.getAttribute('data-index'));
                 if (!idx) return;
                 var photo = galleryPhotos.find(function(p) { return p.index === idx; });
@@ -760,12 +774,65 @@
         }
     }
 
+    // ============ 宇宙尘埃凝结入场动画 (IntersectionObserver) ============
+    function initEntranceAnimations() {
+        if (!window.IntersectionObserver) {
+            // Fallback: just show all items
+            document.querySelectorAll('.gallery-item').forEach(function(item) {
+                item.style.opacity = '1';
+                item._entrancePlayed = true;
+            });
+            return;
+        }
+
+        var entranceObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    var item = entry.target;
+                    if (item._entrancePlayed) return;
+                    item._entrancePlayed = true;
+
+                    var idx = parseInt(item.getAttribute('data-index')) || 0;
+                    // Stagger delay: each card in a "row" gets a slightly different delay
+                    var staggerDelay = (idx % 4) * 80;
+
+                    // Apply entrance class with delay
+                    setTimeout(function() {
+                        item.classList.add('cosmic-entrance');
+                        // After animation completes, settle into normal state
+                        item.addEventListener('animationend', function onAnimEnd(e) {
+                            if (e.animationName === 'cosmicMaterialize') {
+                                item.classList.remove('cosmic-entrance');
+                                item.classList.add('entrance-done');
+                                item.style.opacity = '1';
+                                item.removeEventListener('animationend', onAnimEnd);
+                            }
+                        });
+                    }, staggerDelay);
+
+                    entranceObserver.unobserve(item);
+                }
+            });
+        }, {
+            threshold: 0.12,
+            rootMargin: '0px 0px -40px 0px'
+        });
+
+        document.querySelectorAll('.gallery-item').forEach(function(item) {
+            entranceObserver.observe(item);
+        });
+    }
+
+    // ============ 3D 深度视差更新 (由 lerp loop 驱动) ============
     function updateGalleryDepth() {
         var items = document.querySelectorAll('.gallery-item');
         var viewH = window.innerHeight;
         var scrollY = smoothScrollY || window.pageYOffset || 0;
 
         items.forEach(function(item) {
+            // Skip items still in entrance animation
+            if (!item._entrancePlayed) return;
+
             var rect = item.getBoundingClientRect();
             var itemCenter = rect.top + rect.height / 2;
             var viewCenter = viewH / 2;
@@ -779,12 +846,11 @@
             var opacity = 1 - Math.abs(distFromCenter) * 0.5;
 
             var currentTransform = item.style.transform || '';
-            // Only update if not being hovered (hover sets its own transform)
-            if (currentTransform.indexOf('rotateX') === -1) {
+            // Only update if not being hovered and entrance is done
+            if (currentTransform.indexOf('rotateX') === -1 && item.classList.contains('entrance-done')) {
                 var baseZ = parseFloat(item.style.getPropertyValue('--z-depth')) || 0;
                 item.style.transform = 'translate3d(0, 0, ' + (baseZ - zOffset) + 'px) scale(' + (1 - Math.abs(distFromCenter) * 0.1) + ')';
                 item.style.opacity = opacity;
-                item.style.transition = 'transform 0.8s ease-out, opacity 0.8s ease-out';
             }
         });
     }
@@ -839,17 +905,33 @@
         if (!portalActive) return;
         portalActive = false;
         main.style.transform = 'scale(1)';
+        main.style.transition = 'transform 0.6s ease';
         portalOverlay.classList.remove('active');
-        // Force unlock all scroll
+
+        // Fully unlock all scroll constraints
         document.body.style.overflow = '';
         document.body.style.overflowY = 'auto';
+        document.body.style.overflowX = 'hidden';
         document.documentElement.style.overflowY = 'auto';
-        // Reset lerp scroll state
+
+        // Thoroughly reset lerp scroll state to prevent deadlocks
         targetScrollY = currentScrollY;
         scrollDamping = 0.09;
+        scrollVelocity = 0;
+        scrollStallFrames = 0;
+        lastScrollCheck = performance.now();
+        lastWheelTime = 0;
+
         // Restore body height for lerp scroll
         var newH = main.scrollHeight;
         if (newH > 0) document.body.style.height = newH + 'px';
+
+        // Restore lerp-friendly overflow after a microtask delay
+        setTimeout(function() {
+            document.body.style.overflowY = 'scroll';
+            document.body.style.overflowX = 'hidden';
+        }, 50);
+
         if (portalSourceEl) {
             setTimeout(function() {
                 portalSourceEl.style.transition = 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
@@ -859,13 +941,22 @@
         }
     }
 
-    // ============ 物理惯性视差滚动 (GPU加速版) ============
+    // ============ 物理惯性视差滚动 (GPU加速版, 多重安全防护, 抗死锁) ============
     var smoothScrollY = 0;
     var currentScrollY = 0;
     var targetScrollY = 0;
     var scrollDamping = 0.09;
     var parallaxBg = document.getElementById('parallax-bg');
     var parallaxMid = document.getElementById('parallax-mid');
+    var scrollVelocity = 0;
+    var lastWheelTime = 0;
+    var lastScrollCheck = 0;
+    var scrollStallFrames = 0;
+
+    function clampScroll(val) {
+        var maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
+        return Math.max(0, Math.min(val, maxScroll));
+    }
 
     function initLerpScroll() {
         var initialH = Math.max(main.scrollHeight, window.innerHeight + 100);
@@ -873,57 +964,112 @@
         document.body.style.overflowY = 'scroll';
         document.body.style.overflowX = 'hidden';
 
+        // === WHEEL HANDLER — velocity-capped with burst protection ===
         window.addEventListener('wheel', function(e) {
             e.preventDefault();
-            targetScrollY += e.deltaY;
-            var maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
-            targetScrollY = Math.max(0, Math.min(targetScrollY, maxScroll));
+            var now = performance.now();
+            // Clamp per-event delta to prevent trackpad/mouse burst overflow
+            var cappedDelta = Math.max(-120, Math.min(120, e.deltaY));
+            // If events arrive faster than 16ms apart, blend momentum to smooth bursts
+            var dt = now - lastWheelTime;
+            if (dt < 16 && dt > 0) {
+                scrollVelocity = scrollVelocity * 0.55 + cappedDelta * 0.45;
+            } else {
+                scrollVelocity = scrollVelocity * 0.3 + cappedDelta * 0.7;
+            }
+            lastWheelTime = now;
+            targetScrollY += scrollVelocity;
+            targetScrollY = clampScroll(targetScrollY);
+            lastScrollCheck = now;
+            scrollStallFrames = 0;
         }, { passive: false });
 
+        // === TOUCH HANDLERS ===
         var touchStartY = 0, touchStartScroll = 0;
         window.addEventListener('touchstart', function(e) {
             touchStartY = e.touches[0].clientY;
             touchStartScroll = targetScrollY;
+            scrollStallFrames = 0;
         }, { passive: false });
         window.addEventListener('touchmove', function(e) {
             e.preventDefault();
             var dy = touchStartY - e.touches[0].clientY;
             targetScrollY = touchStartScroll + dy;
-            var maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
-            targetScrollY = Math.max(0, Math.min(targetScrollY, maxScroll));
+            targetScrollY = clampScroll(targetScrollY);
+            lastScrollCheck = performance.now();
         }, { passive: false });
 
+        // === RESIZE OBSERVER — keep body height in sync ===
         if (window.ResizeObserver) {
             var ro = new ResizeObserver(function() {
                 var newH = main.scrollHeight;
                 if (newH > 0 && Math.abs(document.body.scrollHeight - newH) > 10) {
                     document.body.style.height = newH + 'px';
+                    targetScrollY = clampScroll(targetScrollY);
+                    currentScrollY = clampScroll(currentScrollY);
                 }
             });
             ro.observe(main);
         }
 
-        function lerpLoop() {
+        // === LERP LOOP — with deadlock detection & auto-recovery ===
+        function lerpLoop(ts) {
+            var distance = Math.abs(targetScrollY - currentScrollY);
+
+            // DEADLOCK DETECTION: if scroll hasn't converged 600ms after last input
+            if (distance > 0.5) {
+                if (ts - lastScrollCheck > 600) {
+                    // Input has stopped but lerp hasn't converged — force faster damping
+                    scrollDamping = 0.3;
+                    scrollStallFrames++;
+                    if (scrollStallFrames > 10) {
+                        // HARD RECOVERY: instant snap + full reset
+                        currentScrollY = targetScrollY;
+                        scrollVelocity = 0;
+                        scrollDamping = 0.09;
+                        scrollStallFrames = 0;
+                    }
+                } else {
+                    scrollStallFrames = 0;
+                    scrollDamping = 0.09;
+                }
+            } else {
+                // Converged — clean reset
+                currentScrollY = targetScrollY;
+                scrollVelocity = 0;
+                scrollDamping = 0.09;
+                scrollStallFrames = 0;
+            }
+
+            // Lerp step
             currentScrollY += (targetScrollY - currentScrollY) * scrollDamping;
-            if (Math.abs(targetScrollY - currentScrollY) < 0.05) currentScrollY = targetScrollY;
+            if (distance < 0.05) {
+                currentScrollY = targetScrollY;
+                scrollVelocity = 0;
+            }
             smoothScrollY = currentScrollY;
 
-            // GPU-accelerated: translate3d instead of translateY
+            // GPU-accelerated transforms (compositor-only — never triggers layout/repaint)
             main.style.transform = 'translate3d(0, ' + (-currentScrollY) + 'px, 0)';
             if (parallaxBg) parallaxBg.style.transform = 'translate3d(0, ' + (-currentScrollY * 0.15) + 'px, 0)';
             if (parallaxMid) parallaxMid.style.transform = 'translate3d(0, ' + (-currentScrollY * 0.08) + 'px, 0)';
             canvas.style.transform = 'translate3d(0, ' + (-currentScrollY * 0.03) + 'px, 0)';
 
+            // Drive gallery depth from lerp loop (NOT native scroll event)
+            updateGalleryDepth();
+
+            // Fallback height sync for browsers without ResizeObserver
             if (typeof ResizeObserver === 'undefined') {
                 var newH = main.scrollHeight;
                 if (newH > 0 && Math.abs(document.body.scrollHeight - newH) > 10) {
                     document.body.style.height = newH + 'px';
+                    targetScrollY = clampScroll(targetScrollY);
                 }
             }
 
             requestAnimationFrame(lerpLoop);
         }
-        lerpLoop();
+        requestAnimationFrame(lerpLoop);
     }
 
     // ============ Starlight Echoes 超维星轨情感回响 ============

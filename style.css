@@ -55,7 +55,7 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 #gate-btn:active{transform:translate3d(0,0,0) scale(.96)!important}
 
 /* Main */
-.main-content{position:relative;z-index:1;transition:opacity 1.5s ease;will-change:transform}
+.main-content{position:relative;z-index:1;transition:opacity 1.5s ease;will-change:transform;transform:translate3d(0,0,0)}
 .main-content.hidden{opacity:0;visibility:hidden}
 
 /* Music */
@@ -133,7 +133,7 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .echoes-stream-track.paused{animation-play-state:paused}
 .echoes-stream-container:hover .echoes-stream-track{animation-play-state:paused}
 @keyframes streamFlow{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-50%,0,0)}}
-.echo-capsule{flex-shrink:0;width:300px;padding:1.5rem;background:rgba(15,15,35,.45);border:.5px solid rgba(212,175,135,.25);border-radius:20px;transition:transform .4s cubic-bezier(.25,.46,.45,.94),box-shadow .4s ease,border-color .4s ease;position:relative;overflow:hidden;will-change:transform}
+.echo-capsule{flex-shrink:0;width:300px;padding:1.5rem;background:rgba(15,15,35,.45);border:.5px solid rgba(212,175,135,.25);border-radius:20px;transition:transform .4s cubic-bezier(.25,.46,.45,.94),box-shadow .4s ease,border-color .4s ease;position:relative;overflow:hidden;will-change:transform;transform:translate3d(0,0,0)}
 .echo-capsule::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(105deg,transparent 40%,rgba(212,175,135,.1) 45%,transparent 50%);transition:left .8s ease}
 .echo-capsule:hover{transform:translate3d(0,-6px,0) scale(1.03);border-color:rgba(212,175,135,.5);box-shadow:0 20px 60px rgba(212,175,135,.2);z-index:5}
 .echo-capsule:hover::before{left:200%}
@@ -169,15 +169,61 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .gallery-section{padding:6rem 2rem;position:relative}
 .gallery-section::before{content:'';position:absolute;top:10%;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse at center,rgba(100,60,180,.05) 0%,transparent 70%);pointer-events:none}
 .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2rem;max-width:1200px;margin:0 auto;perspective:1800px;transform-style:preserve-3d;position:relative!important;z-index:100!important;pointer-events:auto!important}
-.gallery-item{position:relative!important;z-index:101!important;pointer-events:auto!important;border-radius:18px;overflow:hidden;background:rgba(20,20,40,.4);border:.5px solid rgba(212,175,135,.2);cursor:pointer!important;transition:box-shadow .5s ease,border-color .5s ease;aspect-ratio:4/5;transform-style:preserve-3d;will-change:transform,opacity}
+.gallery-item{position:relative!important;z-index:101!important;pointer-events:auto!important;border-radius:18px;overflow:hidden;background:rgba(20,20,40,.4);border:.5px solid rgba(212,175,135,.2);cursor:pointer!important;transition:box-shadow .5s ease,border-color .5s ease;aspect-ratio:4/5;transform-style:preserve-3d;will-change:transform,opacity;transform:translate3d(0,0,0)}
 .gallery-item:hover{border-color:rgba(212,175,135,.5);box-shadow:0 30px 80px rgba(212,175,135,.3),0 0 40px rgba(180,150,210,.15)}
-.gallery-item img{width:100%;height:100%;object-fit:cover;transition:transform .8s ease}
+.gallery-item img{width:100%;height:100%;object-fit:cover;transition:transform .8s ease;will-change:transform}
 .gallery-item:hover img{transform:translate3d(0,0,0) scale(1.08)}
-.gallery-item::after{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(212,175,135,.1) 0%,transparent 50%);pointer-events:none}
-.gallery-item .scan-line{position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,135,.6),transparent);opacity:0;transition:opacity .3s;z-index:2;pointer-events:none}
+.gallery-item::after{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(212,175,135,.1) 0%,transparent 50%);pointer-events:none;z-index:1}
+.gallery-item .scan-line{position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,135,.6),transparent);opacity:0;transition:opacity .3s;z-index:4;pointer-events:none}
 .gallery-item:hover .scan-line{opacity:1;animation:scanMove 2s ease-in-out infinite}
-.gallery-frame-num{position:absolute;bottom:10px;right:12px;font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(212,175,135,.6);letter-spacing:.1em;z-index:3;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,.8)}
+.gallery-frame-num{position:absolute;bottom:10px;right:12px;font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(212,175,135,.6);letter-spacing:.1em;z-index:5;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,.8)}
 @keyframes scanMove{0%{top:0}100%{top:100%}}
+
+/* Cosmic glow overlay — used during entrance animation */
+.cosmic-glow-overlay{position:absolute;inset:0;pointer-events:none;z-index:2;opacity:0;background:radial-gradient(ellipse at 50% 40%,rgba(212,175,135,.35) 0%,rgba(180,150,210,.15) 40%,transparent 70%);transition:opacity 1.2s ease}
+
+/* ── 宇宙尘埃凝结入场动画 ── */
+.gallery-item.cosmic-entrance{animation:cosmicMaterialize 1.4s cubic-bezier(0.22,0.61,0.36,1) forwards;will-change:transform,opacity,filter}
+.gallery-item.cosmic-entrance .cosmic-glow-overlay{opacity:1}
+.gallery-item.entrance-done .cosmic-glow-overlay{opacity:0;transition:opacity 0.8s ease 0.3s}
+.gallery-item.entrance-done{will-change:transform,opacity}
+
+@keyframes cosmicMaterialize{
+    0%{
+        opacity:0;
+        transform:translate3d(0,50px,-180px) rotateX(12deg) rotateY(-8deg) scale(0.78);
+        filter:blur(16px) brightness(1.5) saturate(0.6);
+        box-shadow:0 0 80px rgba(212,175,135,.55),0 0 140px rgba(180,150,210,.3),0 0 200px rgba(212,175,135,.15);
+    }
+    15%{
+        opacity:.25;
+        filter:blur(12px) brightness(1.4) saturate(0.7);
+        box-shadow:0 0 70px rgba(212,175,135,.5),0 0 120px rgba(180,150,210,.28);
+    }
+    40%{
+        opacity:.6;
+        transform:translate3d(0,15px,-70px) rotateX(4deg) rotateY(-3deg) scale(0.9);
+        filter:blur(5px) brightness(1.2) saturate(0.85);
+        box-shadow:0 0 50px rgba(212,175,135,.35),0 0 90px rgba(180,150,210,.2);
+    }
+    65%{
+        opacity:.85;
+        transform:translate3d(0,3px,-20px) rotateX(1deg) rotateY(-0.5deg) scale(0.97);
+        filter:blur(1.5px) brightness(1.05) saturate(0.95);
+        box-shadow:0 0 30px rgba(212,175,135,.15),0 0 60px rgba(180,150,210,.08);
+    }
+    85%{
+        opacity:.95;
+        transform:translate3d(0,1px,-5px) rotateX(0.2deg) rotateY(0deg) scale(0.99);
+        filter:blur(0.3px) brightness(1.01) saturate(1);
+    }
+    100%{
+        opacity:1;
+        transform:translate3d(0,0,0) rotateX(0) rotateY(0) scale(1);
+        filter:blur(0) brightness(1) saturate(1);
+        box-shadow:none;
+    }
+}
 
 /* Portal — immersive dimensional overlay */
 .portal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:700;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;pointer-events:none!important;transition:opacity .6s ease,visibility .6s ease}
