@@ -12,8 +12,8 @@
     //   ServerChan https://sctapi.ftqq.com/<SENDKEY>.send  (payload 字段为 title + desp)
     var WEBHOOK_URL = 'https://enoa6f6r4m58l.x.pipedream.net/'; // 测试用 RequestBin，之后可替换为正式通道
 
-    // ============ 轻量香槟星尘 (60fps 优先) ============
-    // 简单粒子：100-150 颗，缓慢上浮 + 轻柔左右摇摆，无复杂流场
+    // ============ 灵动星尘引擎 (High Performance) ============
+    // 优雅宇宙流 + 鼠标磁斥涡旋。桌面 500 粒拖尾流光，移动 180 粒 clearRect 保证 60fps
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
     var particles = [];
@@ -21,8 +21,9 @@
     var isMobile = window.innerWidth < 768;
     var DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
     var time = 0;
+    var mouse = { x: -9999, y: -9999 };
 
-    // 香槟 / 柔粉 / 星光白（低透明度，柔和不刺眼）
+    // 香槟金 / 柔粉 / 星光白
     var STARDUST_COLORS = [
         { r: 249, g: 229, b: 201 },  // #F9E5C9 Champagne Gold
         { r: 255, g: 209, b: 220 },  // #FFD1DC Soft Pastel Pink
@@ -39,16 +40,17 @@
 
     function initParticles() {
         var w = window.innerWidth, h = window.innerHeight;
-        var count = isMobile ? 100 : 150;
+        // 移动 180 / 桌面 500（移动端降载，桌面拉满）
+        var count = isMobile ? 180 : 500;
         particles = [];
         for (var i = 0; i < count; i++) {
             var ci = Math.floor(Math.random() * STARDUST_COLORS.length);
             var col = STARDUST_COLORS[ci];
-            var big = Math.random() < 0.15;
+            var big = Math.random() < 0.12;
             particles.push({
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: big ? (Math.random() * 2 + 2.2) : (Math.random() * 1.4 + 0.5),
+                size: big ? (Math.random() * 2 + 2.2) : (Math.random() * 1.3 + 0.4),
                 color: 'rgba(' + col.r + ',' + col.g + ',' + col.b + ',',
                 opacity: Math.random() * 0.3 + 0.3,
                 baseSize: 0,
@@ -56,10 +58,11 @@
                 twinkleSpeed: Math.random() * 0.02 + 0.008,
                 driftX: Math.random() * Math.PI * 2,
                 driftY: Math.random() * Math.PI * 2,
-                // 上浮速度（慢），摇摆幅度（小）
-                vy: -(Math.random() * 0.18 + 0.06),
-                swayAmp: Math.random() * 0.6 + 0.2,
-                swaySpeed: Math.random() * 0.02 + 0.008
+                // 优雅宇宙流：极缓上浮 + 大周期正弦漂移
+                vx: (Math.random() - 0.5) * 0.12,
+                vy: -(Math.random() * 0.16 + 0.05),
+                swayAmp: Math.random() * 0.5 + 0.2,
+                swaySpeed: Math.random() * 0.018 + 0.008
             });
             particles[i].baseSize = particles[i].size;
         }
@@ -69,7 +72,7 @@
         var w = window.innerWidth, h = window.innerHeight;
         time += 0.016;
 
-        // 移动端 clearRect，桌面保留轻微拖尾（更省 GPU）
+        // 桌面：半透明填充的拖尾流光 trick；移动：clearRect 严格 60fps
         if (isMobile) {
             ctx.clearRect(0, 0, w, h);
         } else {
@@ -77,15 +80,31 @@
             ctx.fillRect(0, 0, w, h);
         }
 
+        var mx = mouse.x, my = mouse.y;
         for (var i = 0; i < particles.length; i++) {
             var p = particles[i];
 
-            // 上浮 + 轻柔左右摇摆（正弦）
-            p.y += p.vy;
-            p.x += Math.sin(time * p.swaySpeed + p.driftX) * p.swayAmp * 0.35;
+            // 鼠标磁斥涡旋：近处被推离并带切向旋转（柔和流体）
+            var dx = p.x - mx, dy = p.y - my;
+            var dist2 = dx * dx + dy * dy;
+            if (dist2 < 22500 && dist2 > 0.01) {   // 半径 ~150px
+                var dist = Math.sqrt(dist2);
+                var force = (1 - dist / 150) * 0.85;
+                var nx = dx / dist, ny = dy / dist;
+                // 径向斥力 + 切向涡旋
+                var swirl = force * 1.2;
+                p.vx += (nx * force - (-ny) * swirl) * 0.14;
+                p.vy += (ny * force - nx * swirl) * 0.14;
+            }
 
-            // 缓慢旋转的轻微漂移
-            p.x += Math.sin(p.driftY) * 0.02;
+            // 宇宙流：缓慢上浮 + 大周期正弦摇摆
+            p.vx += Math.sin(time * p.swaySpeed * 0.7 + p.driftX) * 0.0006;
+            p.vy += Math.cos(time * p.swaySpeed * 0.5 + p.driftY) * 0.0004;
+            // 阻尼，避免粒子越飘越快
+            p.vx *= 0.985;
+            p.vy *= 0.985;
+            p.x += p.vx + Math.sin(time * p.swaySpeed + p.driftX) * p.swayAmp * 0.3;
+            p.y += p.vy;
 
             // 出界回绕
             if (p.y < -20) { p.y = h + 20; p.x = Math.random() * w; }
@@ -117,6 +136,8 @@
         DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
         resizeCanvas();
     });
+    window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
+    window.addEventListener('touchmove', function(e) { if (e.touches[0]) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; } }, { passive: true });
     resizeCanvas();
     drawStars();
 
@@ -706,7 +727,7 @@
                 o.start(); o.stop(musicCtx.currentTime + dur + 0.1);
             } catch(e) {}
         }
-        document.querySelectorAll('.constellation-item, .echo-beacon, .gate-btn, .echo-launch-btn').forEach(function(el) {
+        document.querySelectorAll('.constellation-item, .echo-card, .gate-btn, .echo-launch-btn').forEach(function(el) {
             el.addEventListener('mouseenter', function() { playSfx(300 + Math.random()*200, 'sine', 0.2, 0.03); });
         });
         document.querySelectorAll('button').forEach(function(el) {
@@ -1021,13 +1042,14 @@
         return div;
     }
 
-    // ═══════ Y 轴旋转木马 (Merry-go-round) ═══════
-    // 每张照片 rotateY(i * 360/N) 分布在巨大圆周上，translateZ(radius) 远离圆心。
-    // 拖拽水平旋转 + 惯性摩擦，空闲时缓慢优雅自转。无陀螺仪、无音频反应、无丁达尔光。
+    // ═══════ 180° 全景弧形剧场 (Panoramic Arc) ═══════
+    // 照片在 -75°~+75° 区间排成面向相机的弧形墙（剧场舞台感）。
+    // 拖拽只在弧内平移，CLAMP 到最左/最右，绝不 360° 转圈。Lerp 惯性 buttery smooth。
     var orbit = {
         viewport: null, stage: null, items: [],
         angle: 0, targetAngle: 0, velocity: 0,
-        autoSpeed: 0.0006,              // 空闲自转速度（优雅缓慢）
+        arcHalf: 75,                     // 弧半宽（度）：照片铺在 -75° ~ +75°
+        maxPan: 0,                       // 旋转极限（弧度）：±arcHalf
         dragging: false, lastX: 0,
         radius: 700, itemW: 190, itemH: 266,
         raf: 0
@@ -1066,21 +1088,26 @@
             updateOrbitMetrics();
 
             var count = galleryPhotos.length;
-            var step = 360 / count;
+            // 排布角度：从 -75° 到 +75°，均匀铺满弧（不是除以 360！）
+            var spread = 2 * orbit.arcHalf;               // 150°
+            var step = spread / (count - 1);              // 10 段 → 11 张照片
             galleryPhotos.forEach(function(photo, k) {
                 var item = createGalleryItem(photo.src, photo.index);
                 item.style.width = orbit.itemW + 'px';
                 item.style.height = orbit.itemH + 'px';
                 item.style.left = (-orbit.itemW / 2) + 'px';
                 item.style.top = (-orbit.itemH / 2) + 'px';
-                // 关键：每张照片绕 Y 轴固定角度
-                item._angle = k * step;
+                // 照片固定角度：最左 -75°，最右 +75°
+                item._angle = -orbit.arcHalf + k * step;
                 item.style.opacity = '0';
                 grid.appendChild(item);
                 orbit.items.push(item);
             });
 
-            // 中心光源：花花头像（不再有丁达尔光）
+            // 拖拽旋转极限：±75°（弧度）。angle=+maxPan 时最左照片转到正中，反之亦然
+            orbit.maxPan = orbit.arcHalf * Math.PI / 180;
+
+            // 中心装饰：花花头像（弧形墙正中，柔和呼吸）
             var centerWrap = document.createElement('div');
             centerWrap.className = 'orbit-center';
             centerWrap.innerHTML = '<img src="images/huahua.jpg" class="orbit-center-avatar" alt="花花">';
@@ -1092,14 +1119,26 @@
         }
     }
 
-    // 动态半径：宽高的 45%，至少 400px，绝不拥挤
+    // 动态半径：按弧的弦宽适配视口（弦宽 = 2*R*sin75°），让弧形墙恰好填满屏幕
     function updateOrbitMetrics() {
         var mobile = window.innerWidth < 768;
-        var R = Math.max(window.innerWidth * 0.45, 400);
-        R = Math.min(R, mobile ? 620 : 900);
+        var vw = window.innerWidth;
+        var sinHalf = Math.sin(orbit.arcHalf * Math.PI / 180);   // sin75° ≈ 0.966
+        // R = (半视口宽 / sin75°) * 余量，使弧两端刚好落在视口内
+        var R = (vw / 2 / sinHalf) * 0.82;
+        R = Math.max(R, mobile ? 190 : 420);
+        R = Math.min(R, mobile ? 520 : 860);
         orbit.radius = R;
-        orbit.itemW = mobile ? 130 : 190;
-        orbit.itemH = mobile ? 182 : 266;
+        orbit.itemW = mobile ? 120 : 190;
+        orbit.itemH = mobile ? 168 : 266;
+    }
+
+    // CLAMP：拖拽旋转被限制在 ±maxPan 弧度（0 = 弧形墙正中，正负 = 左右平移）
+    // 用户最多从左端点拖到右端点，绝不 360° 转圈
+    function clampPan(a) {
+        if (a < -orbit.maxPan) return -orbit.maxPan;
+        if (a > orbit.maxPan) return orbit.maxPan;
+        return a;
     }
 
     function bindOrbitEvents() {
@@ -1110,9 +1149,12 @@
             if (!orbit.dragging) return;
             var dx = x - orbit.lastX;
             orbit.lastX = x;
-            // 水平拖拽 → 旋转木马角度变化（手感：拖 1px → 转 0.003 rad）
+            // 水平拖拽 → 平移弧形墙（拖 1px → 转 0.003 rad）
+            // 弧宽 150° = 2.618 rad，整个屏幕拖满就到底
             orbit.targetAngle += dx * 0.003;
             orbit.velocity = dx * 0.003;
+            // 立即 clamp，避免拖出边界
+            orbit.targetAngle = clampPan(orbit.targetAngle);
         }
         function end() {
             if (!orbit.dragging) return;
@@ -1141,11 +1183,14 @@
     }
 
     function orbitLoop() {
-        // 空闲时惯性减速 + 优雅自转；拖拽中不叠加自转（避免抢手）
+        // 空闲时惯性减速（拖拽结束后的滑行），不自动旋转——弧墙保持静止
         if (!orbit.dragging) {
-            orbit.velocity *= 0.96;
+            orbit.velocity *= 0.94;
             if (Math.abs(orbit.velocity) < 0.0002) orbit.velocity = 0;
-            orbit.targetAngle += orbit.autoSpeed + orbit.velocity;
+            orbit.targetAngle += orbit.velocity;
+            // 超出边界 → 温和回弹（clamp + 速度反向衰减）
+            if (orbit.targetAngle < -orbit.maxPan) { orbit.targetAngle = -orbit.maxPan; orbit.velocity *= -0.3; }
+            if (orbit.targetAngle > orbit.maxPan) { orbit.targetAngle = orbit.maxPan; orbit.velocity *= -0.3; }
         }
 
         // Lerp 平滑收敛（buttery smooth）
@@ -1159,22 +1204,23 @@
 
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
-            var a = it._angle * Math.PI / 180 + orbit.angle;
-            // 圆周坐标：相机看向 -Z，前方为正
+            // 每张照片的固定弧位角 + 当前平移
+            var a = (it._angle * Math.PI / 180) + orbit.angle;
+            // 弧形剧场坐标：照片位于圆弧上，面向 +Z 相机
             var x = Math.sin(a) * R;
             var z = Math.cos(a) * R;
 
             // 深度：前(+z)为近，后(-z)为远
             var depth = (z + R) / (R * 2);
             // 景深：远模糊 + 降透明，前清晰
-            var blurAmt = (1 - depth) * 3;
-            var opacity = 0.3 + depth * 0.7;
+            var blurAmt = (1 - depth) * 2.5;
+            var opacity = 0.35 + depth * 0.65;
 
-            // 透视缩放：近大远小（基础 + 深度驱动）
-            var scale = 0.55 + depth * 0.75;
-            scale = Math.min(scale, 1.35);
+            // 透视缩放：近大远小（正前方最大）
+            var scale = 0.6 + depth * 0.7;
+            scale = Math.min(scale, 1.3);
 
-            // 屏幕投影：左右位置用 x，Y 轴平齐（旋转木马）
+            // 屏幕投影：左右位置用 x，Y 轴平齐（弧形墙）
             var screenX = cx + x * 0.85;
             var screenY = cy;
 
@@ -1183,7 +1229,7 @@
             var facing = depth;
             var glare = 0.12 + facing * 0.3;
 
-            // 手动投影旋转木马：照片始终正面朝相机（纯 2D 合成，最省 GPU）
+            // 弧形墙：照片仍正面朝相机（纯 2D 合成，最省 GPU）
             it.style.transform = 'translate3d(' + screenX.toFixed(1) + 'px,' + screenY.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ')';
             it.style.filter = 'blur(' + blurAmt.toFixed(2) + 'px)';
             it.style.opacity = opacity.toFixed(2);
@@ -1191,7 +1237,7 @@
             it._depth = depth;
         }
 
-        // 中心头像：固定在视口正中（旋转木马中心），柔和呼吸
+        // 中心头像：固定在视口正中（弧形墙正中），柔和呼吸
         if (orbit.center) {
             orbit.center.style.transform = 'translate3d(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px,0) translate(-50%,-50%)';
         }
