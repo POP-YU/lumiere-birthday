@@ -463,6 +463,7 @@
     var bgmAudio = null;
     var audioFailed = false;
     var audioAttempted = false;
+    var audioPlaying = false;
     var engineActive = false;
 
     function setVinylPlaying(on) {
@@ -519,24 +520,43 @@
         resumeEngine();
     }
 
+    // 播放 <audio> 黑胶音源（含微信 JSBridge 场景统一入口）
+    function playAudioSource() {
+        if (!bgmAudio) return false;
+        var playPromise = bgmAudio.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+            playPromise.then(function() {
+                audioFailed = false;
+                setBGMVisuals(true);
+            }).catch(function() {
+                // 音源缺失/格式不支持/被拦截 → 标记失败，让 startBGM 走引擎回退
+                audioFailed = true;
+                if (musicPlaying) {
+                    startEngine();
+                } else {
+                    // 门内触发以外的失败（如微信自动播放被拦）：重置状态，等用户手势重试
+                    audioPlaying = false;
+                    setBGMVisuals(false);
+                }
+            });
+        } else {
+            setBGMVisuals(true);
+        }
+        return true;
+    }
+
     // 初始化音频播放（由"开启宇宙"按钮在用户手势内触发，绕过自动播放限制）
     function startBGM() {
         var c = initMusicCtx();
         if (c && c.state === 'suspended') { try { c.resume(); } catch(e) {} }
+        // 已有可用音源 → 恢复播放（绝不重复启动引擎造成双声）
+        if (bgmAudio && !audioFailed && audioAttempted) {
+            playAudioSource();
+            return;
+        }
         if (bgmAudio && !audioFailed && !audioAttempted) {
             audioAttempted = true;
-            var playPromise = bgmAudio.play();
-            if (playPromise && typeof playPromise.then === 'function') {
-                playPromise.then(function() {
-                    setBGMVisuals(true);
-                }).catch(function() {
-                    audioFailed = true;
-                    // 音源缺失/格式不支持 → 回退 WebAudio 引擎
-                    startEngine();
-                });
-            } else {
-                setBGMVisuals(true);
-            }
+            playAudioSource();
             return;
         }
         // 无 <audio> 或已标记失败 → 直接走引擎
@@ -571,15 +591,43 @@
         musicBtn = newBtn;
 
         musicBtn.addEventListener('click', function() {
-            if (!musicPlaying) {
-                musicPlaying = true;
+            if (!audioPlaying) {
+                audioPlaying = true;
                 startBGM();
             } else {
-                musicPlaying = false;
+                audioPlaying = false;
                 setBGMVisuals(false);
                 pauseBGM();
             }
         });
+    }
+
+    // ═══ 微信 JSBridge 自动播放（朋友圈 / 微信内置浏览器专用）═══
+    // 微信在页面加载时即触发 WeixinJSBridgeReady，此刻立即拉起 BGM 的 <audio>，
+    // 让音乐在用户触摸"开启宇宙"之前就开始。musicPlaying 保持 false，
+    // 门按钮点击仍正常放行；音乐状态由独立的 audioPlaying 管理。
+    // 注意：仅在微信内置浏览器(UA 含 MicroMessenger)内尝试，避免污染普通浏览器状态。
+    var isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+    var wechatAudioTried = false;
+    function tryWeChatAutoplay() {
+        if (wechatAudioTried || !isWeChat) return;
+        wechatAudioTried = true;
+        bgmAudio = document.getElementById('bgm-audio');
+        if (!bgmAudio) return;
+        audioPlaying = true;
+        audioAttempted = true;
+        playAudioSource();
+    }
+    if (isWeChat) {
+        if (typeof window.WeixinJSBridge !== 'undefined') {
+            tryWeChatAutoplay();
+        } else {
+            document.addEventListener('WeixinJSBridgeReady', tryWeChatAutoplay, false);
+            // 兜底：微信 JSBridge 就绪事件偶发丢失，再加一次 onload 重试
+            window.addEventListener('load', function() {
+                setTimeout(tryWeChatAutoplay, 1200);
+            }, false);
+        }
     }
 
     // ============ UI 交互音效 ============
