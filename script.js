@@ -224,16 +224,7 @@
     }
     requestAnimationFrame(audioReactiveTick);
 
-    // ③ 丁达尔神之光：中心光源向外辐射体积光，随水晶位置被切割
-    // 由 orbitLoop 每帧更新 CSS 变量 --god-ray-angle 等驱动
-    function updateGodRays() {
-        var center = document.querySelector('.orbit-center');
-        if (!center) return;
-        var angle = 0;
-        // 取最近一颗水晶的角度作为遮挡方向（角度由 orbit 提供）
-        if (window.__orbitNearestAngle !== undefined) angle = window.__orbitNearestAngle;
-        center.style.setProperty('--ray-angle', angle.toFixed(2) + 'deg');
-    }
+    // ③ 丁达尔神之光：已改为纯 CSS 慢速自转（@keyframes slowSpin），无需 JS 更新
 
     // ============ 加载器 ============
     var loader = document.getElementById('preamble-loader');
@@ -1339,8 +1330,6 @@
         var R = orbit._R || 700;
 
         // 追踪最近水晶角度 → 驱动丁达尔光遮挡
-        var nearestDepth = -9999, nearestAngle = 0;
-
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
             var dir = it._dir;
@@ -1382,21 +1371,10 @@
             it.style.opacity = opacity.toFixed(2);
             it.style.boxShadow = '0 0 ' + (glare * 140).toFixed(0) + 'px rgba(255,224,200,' + (glare * 0.5).toFixed(2) + '), inset 0 0 40px rgba(255,255,255,' + (glare * 0.35).toFixed(2) + ')';
             it._depth = depth;
-
-            // 追踪离相机最近的水晶 → 用于丁达尔光遮挡方向
-            if (z > nearestDepth) {
-                nearestDepth = z;
-                nearestAngle = billY;
-            }
         }
 
-        // 丁达尔神之光：把最近水晶角度暴露给 CSS 驱动射线
-        window.__orbitNearestAngle = nearestAngle;
-        var centerEl = document.querySelector('.orbit-center');
-        if (centerEl) {
-            centerEl.style.setProperty('--ray-angle', nearestAngle.toFixed(1) + 'deg');
-            centerEl.style.setProperty('--ray-power', (0.35 + audioBass * 0.65 + audioPulse * 0.5).toFixed(2));
-        }
+        // 丁达尔神之光：不再每帧更新 CSS 变量（改纯 CSS 自转，避免 reflow）
+        // 光强度改由低频驱动 transform scale 动画，已移除 setProperty
 
         // 中心行星固定（光源头）+ 心跳随音乐脉冲
         if (orbit.center) {
@@ -1722,11 +1700,14 @@
         stage.innerHTML = '';
         echoHUD.beacons = [];
         var N = echoesData.length;
+        // 双球壳：回声信标用外层球（照片半径 × 1.4），与照片在 3D 空间分离
+        var photoR = Math.max(window.innerWidth, window.innerHeight) * 0.4;
+        var echoR = photoR * 1.4;
         for (var i = 0; i < N; i++) {
             var beacon = createEchoBeacon(echoesData[i]);
-            // Fibonacci 球面分布：信标均匀铺满小球面
+            // Fibonacci 球面分布：信标均匀铺满外层球面
             beacon._dir = fibonacciSphere(i, N);
-            beacon._radius = 150 + (i % 3) * 40;   // 多层球壳
+            beacon._radius = echoR;
             stage.appendChild(beacon);
             echoHUD.beacons.push(beacon);
         }
@@ -1774,23 +1755,27 @@
 
         var sw = stage.clientWidth, sh = stage.clientHeight;
         var cx = sw / 2, cy = sh / 2;
+        // 外层球半径（1.4x）太大，投影时归一化到视口内
+        var projR = Math.min(sw, sh) * 0.38;
         for (var i = 0; i < echoHUD.beacons.length; i++) {
             var b = echoHUD.beacons[i];
             var dir = b._dir;
             var R = b._radius;
             var p = rotatePoint(dir.x * R, dir.y * R, dir.z * R, echoHUD.rotX, echoHUD.rotY, echoHUD.rotZ);
             var z = p.z, x = p.x, y = p.y;
-            var depth = (z + R) / (R * 2);
+            // 归一化：方向 × 投影半径（保持球面几何但塞进视口）
+            var nx = x / R * projR, ny = y / R * projR, nz = z / R * projR;
+            var depth = (nz + projR) / (projR * 2);
             var scale = 0.6 + depth * 0.6;
             var opacity = 0.25 + depth * 0.75;
             var blur = (1 - depth) * 2.2;
             // 广告牌：信标朝向相机
-            var distXY = Math.sqrt(x * x + z * z);
-            var billY = Math.atan2(x, z) * 180 / Math.PI;
-            var billX = -Math.atan2(y, Math.max(distXY, 0.001)) * 180 / Math.PI;
-            var sx = cx + x * (0.6 + depth * 0.5);
-            var sy = cy + y * (0.6 + depth * 0.5);
-            b.style.zIndex = Math.round(z + R);
+            var distXY = Math.sqrt(nx * nx + nz * nz);
+            var billY = Math.atan2(nx, nz) * 180 / Math.PI;
+            var billX = -Math.atan2(ny, Math.max(distXY, 0.001)) * 180 / Math.PI;
+            var sx = cx + nx * (0.6 + depth * 0.5);
+            var sy = cy + ny * (0.6 + depth * 0.5);
+            b.style.zIndex = Math.round(nz + projR);
             b.style.transform = 'translate3d(' + sx.toFixed(1) + 'px,' + sy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ') rotateY(' + billY.toFixed(1) + 'deg) rotateX(' + billX.toFixed(1) + 'deg)';
             b.style.opacity = opacity.toFixed(2);
             b.style.filter = 'blur(' + blur.toFixed(2) + 'px)';
