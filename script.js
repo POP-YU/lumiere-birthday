@@ -706,7 +706,7 @@
                 o.start(); o.stop(musicCtx.currentTime + dur + 0.1);
             } catch(e) {}
         }
-        document.querySelectorAll('.constellation-item, .echo-capsule, .gate-btn, .echo-launch-btn').forEach(function(el) {
+        document.querySelectorAll('.constellation-item, .echo-beacon, .gate-btn, .echo-launch-btn').forEach(function(el) {
             el.addEventListener('mouseenter', function() { playSfx(300 + Math.random()*200, 'sine', 0.2, 0.03); });
         });
         document.querySelectorAll('button').forEach(function(el) {
@@ -1021,27 +1021,28 @@
         return div;
     }
 
-    // ═══════ 惯性拖拽星象图引擎 (Inertia-Draggable Constellation) ═══════
-    var constellation = {
-        viewport: null, canvas: null, items: [],
-        dragX: 0, dragY: 0,          // 当前偏移
-        targetX: 0, targetY: 0,      // 目标偏移（含惯性速度）
-        velX: 0, velY: 0,            // 惯性速度
-        dragging: false, pointerId: null,
-        lastX: 0, lastY: 0,          // 上一帧指针位置
-        bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
-        mouse: { x: -9999, y: -9999 }, // 视口内光标，用于磁性吸附
+    // ═══════ 3D 行星轨道引擎 (Orbital Solar System) ═══════
+    var orbit = {
+        viewport: null, stage: null, items: [],
+        angle: 0,              // 全局轨道角（自转）
+        targetAngle: 0,        // 用户拖拽后的目标角
+        vel: 0,                // 角速度（惯性）
+        autoSpeed: 0.0012,     // 空闲自动旋转速度
+        dragging: false, lastX: 0,
+        mouseX: 0,             // 视口内光标 X（磁性/tilt 基准）
         raf: 0
     };
 
-    function initConstellation() {
-        constellation.viewport = document.getElementById('gallery-viewport');
-        constellation.canvas = document.getElementById('constellation-canvas');
-        if (!constellation.viewport || !constellation.canvas) return;
+    function initOrbit() {
+        orbit.viewport = document.getElementById('gallery-viewport');
+        orbit.stage = document.getElementById('constellation-canvas');
+        if (!orbit.viewport || !orbit.stage) return;
 
-        constellation.items = [];
-        var grid = constellation.canvas;
+        orbit.items = [];
+        var grid = orbit.stage;
         grid.innerHTML = '';
+        // 切换到 3D 透视舞台
+        grid.classList.add('orbit-stage');
 
         var totalPhotos = window.TOTAL_REAL_PHOTOS || 11;
         var loaded = 0;
@@ -1051,220 +1052,169 @@
                 loadImage(src).then(function() {
                     galleryPhotos.push({ src: src, index: idx });
                     loaded++;
-                    if (loaded === totalPhotos) renderConstellation();
+                    if (loaded === totalPhotos) buildOrbit();
                 }).catch(function() {
                     var dataUrl = generateCosmicArt(idx);
                     galleryPhotos.push({ src: dataUrl, index: idx, isGenerated: true });
                     loaded++;
-                    if (loaded === totalPhotos) renderConstellation();
+                    if (loaded === totalPhotos) buildOrbit();
                 });
             })(i);
         }
 
-        function renderConstellation() {
+        function buildOrbit() {
             galleryPhotos.sort(function(a, b) { return a.index - b.index; });
-            var W = constellation.canvas.clientWidth || 3000;
-            var H = constellation.canvas.clientHeight || 2000;
-            var padX = W * 0.1, padY = H * 0.1;
-            // 用伪随机网格散布照片，避免重叠，又不显呆板
-            var cols = 4, rows = 3;
-            var cellW = (W - padX * 2) / cols, cellH = (H - padY * 2) / rows;
+
+            // 移动端缩小轨道半径与照片尺寸
+            var mobile = window.innerWidth < 768;
+            var R = mobile ? 320 : 480;
+            var itemW = mobile ? 140 : 200;
+            var itemH = mobile ? 196 : 280;
+            orbit._R = R;
+            orbit._itemW = itemW;
+            orbit._itemH = itemH;
+
+            // 柱面轨道：绕中心 Y 轴均匀分布，X/Z 用 sin/cos，Y 发散起伏
+            var count = galleryPhotos.length;
             galleryPhotos.forEach(function(photo, k) {
                 var item = createGalleryItem(photo.src, photo.index);
-                var col = k % cols, row = Math.floor(k / cols);
-                var jx = (col + 0.5) * cellW + padX + (Math.sin(k * 12.9898) * 0.5) * cellW * 0.35;
-                var jy = (row + 0.5) * cellH + padY + (Math.cos(k * 78.233) * 0.5) * cellH * 0.35;
-                // 尺寸微变化
-                var scaleV = 0.8 + ((k * 37) % 5) * 0.09;
-                item.style.left = jx + 'px';
-                item.style.top = jy + 'px';
-                item.style.transform = 'translate3d(0,0,0) scale(' + scaleV.toFixed(2) + ')';
-                item._scale = scaleV;
-                item._jx = jx; item._jy = jy;
+                var baseAngle = (k / count) * Math.PI * 2;
+                // Y 起伏：两两错开，营造立体纵深
+                var yOff = Math.sin(k * 1.7) * 90;
+                item.style.width = itemW + 'px';
+                item.style.height = itemH + 'px';
+                item.style.left = (-itemW / 2) + 'px';
+                item.style.top = (-itemH / 2) + 'px';
+                item._baseAngle = baseAngle;
+                item._yOff = yOff;
+                item._baseW = itemW;
+                item._baseH = itemH;
+                item.style.opacity = '0';
                 grid.appendChild(item);
-                constellation.items.push(item);
+                orbit.items.push(item);
             });
-            // 布局完成后再算边界与居中（clientWidth 此时才可靠）
-            computeBounds();
-            centerConstellation();
-            bindConstellationEvents();
-            requestAnimationFrame(constellationLoop);
+
+            // 中心发光源：两个头像作为轨道中心行星（光源自转）
+            var centerWrap = document.createElement('div');
+            centerWrap.className = 'orbit-center';
+            centerWrap.innerHTML = '<img src="images/huahua.jpg" class="orbit-center-avatar" alt="花花">';
+            grid.appendChild(centerWrap);
+            orbit.center = centerWrap;
+
+            bindOrbitEvents();
+            requestAnimationFrame(orbitLoop);
         }
     }
 
-    function computeBounds() {
-        var vpW = constellation.viewport.clientWidth, vpH = constellation.viewport.clientHeight;
-        var cW = constellation.canvas.clientWidth, cH = constellation.canvas.clientHeight;
-        // 有效偏移范围：[-range, 0]，居中 = -range/2
-        constellation.bounds.minX = -(cW - vpW);
-        constellation.bounds.maxX = 0;
-        constellation.bounds.minY = -(cH - vpH);
-        constellation.bounds.maxY = 0;
-        constellation.bounds.init = cW > 0 && cH > 0;
-    }
+    function bindOrbitEvents() {
+        var vp = orbit.viewport;
 
-    function centerConstellation() {
-        constellation.dragX = (constellation.bounds.minX + constellation.bounds.maxX) / 2;
-        constellation.dragY = (constellation.bounds.minY + constellation.bounds.maxY) / 2;
-        constellation.targetX = constellation.dragX;
-        constellation.targetY = constellation.dragY;
-        constellation.velX = 0; constellation.velY = 0;
-    }
-
-    function bindConstellationEvents() {
-        var vp = constellation.viewport;
-
-        function pointerStart(x, y, pid) {
-            constellation.dragging = true;
-            constellation.pointerId = pid;
-            constellation.lastX = x; constellation.lastY = y;
-            constellation.velX = 0; constellation.velY = 0;
-            vp.classList.add('dragging');
-            if (vp.setPointerCapture) { try { vp.setPointerCapture(pid); } catch(e) {} }
+        function start(x) { orbit.dragging = true; orbit.lastX = x; vp.classList.add('dragging'); }
+        function move(x) {
+            orbit.mouseX = x - vp.getBoundingClientRect().left;
+            if (!orbit.dragging) return;
+            var dx = x - orbit.lastX;
+            orbit.lastX = x;
+            // 拖拽 δX → 角速度（左右滑动转轨道）
+            orbit.targetAngle += dx * 0.006;
+            orbit.vel = dx * 0.006;
         }
-        function pointerMove(x, y) {
-            if (!constellation.dragging) {
-                // 悬停跟踪由 viewport 的 mousemove 处理器负责（viewport 相对坐标）
-                // 此处 window 级处理器不再写 mouse，避免与 viewport 坐标系混用
-                return;
-            }
-            var dx = x - constellation.lastX, dy = y - constellation.lastY;
-            constellation.lastX = x; constellation.lastY = y;
-            // 目标位置随拖动移动；用帧时间归一化速度
-            constellation.targetX += dx;
-            constellation.targetY += dy;
-            constellation.velX = dx; constellation.velY = dy;
-        }
-        function pointerEnd() {
-            if (!constellation.dragging) return;
-            constellation.dragging = false;
-            constellation.pointerId = null;
-            vp.classList.remove('dragging');
-        }
+        function end() { if (!orbit.dragging) return; orbit.dragging = false; vp.classList.remove('dragging'); }
 
-        // Mouse
-        vp.addEventListener('mousedown', function(e) {
-            e.preventDefault();
-            pointerStart(e.clientX, e.clientY, 'm');
-        });
-        window.addEventListener('mousemove', function(e) {
-            pointerMove(e.clientX, e.clientY);
-        });
-        window.addEventListener('mouseup', pointerEnd);
+        vp.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX); });
+        window.addEventListener('mousemove', function(e) { move(e.clientX); });
+        window.addEventListener('mouseup', end);
+        vp.addEventListener('touchstart', function(e) { e.preventDefault(); start(e.touches[0].clientX); }, { passive: false });
+        vp.addEventListener('touchmove', function(e) { e.preventDefault(); move(e.touches[0].clientX); }, { passive: false });
+        vp.addEventListener('touchend', end);
+        vp.addEventListener('touchcancel', end);
+        vp.addEventListener('mouseleave', function() { orbit.mouseX = -9999; });
 
-        // Touch
-        vp.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            var t = e.touches[0];
-            pointerStart(t.clientX, t.clientY, t.identifier);
-        }, { passive: false });
-        vp.addEventListener('touchmove', function(e) {
-            e.preventDefault();
-            var t = e.touches[0];
-            pointerMove(t.clientX, t.clientY);
-        }, { passive: false });
-        vp.addEventListener('touchend', pointerEnd);
-        vp.addEventListener('touchcancel', pointerEnd);
-
-        // 视口内光标位置（磁性吸附基准）
-        vp.addEventListener('mousemove', function(e) {
-            var r = vp.getBoundingClientRect();
-            constellation.mouse.x = e.clientX - r.left;
-            constellation.mouse.y = e.clientY - r.top;
-        });
-        vp.addEventListener('mouseleave', function() {
-            constellation.mouse.x = -9999; constellation.mouse.y = -9999;
-        });
-
-        // 点击拖拽后不触发放大
+        // 点击拖拽不触发放大
         vp.addEventListener('click', function(e) {
-            if (Math.abs(constellation.velX) + Math.abs(constellation.velY) > 0.5) e.stopPropagation();
+            if (Math.abs(orbit.vel) > 0.01) e.stopPropagation();
         });
 
-        // 窗口缩放时重算边界（防抖）
+        // 窗口缩放时按新尺寸重设轨道半径
         var resizeT = null;
         window.addEventListener('resize', function() {
             clearTimeout(resizeT);
             resizeT = setTimeout(function() {
-                computeBounds();
-                constellation.targetX = Math.max(constellation.bounds.minX, Math.min(constellation.bounds.maxX, constellation.targetX));
-                constellation.targetY = Math.max(constellation.bounds.minY, Math.min(constellation.bounds.maxY, constellation.targetY));
+                var mobile = window.innerWidth < 768;
+                orbit._R = mobile ? 320 : 480;
+                orbit._itemW = mobile ? 140 : 200;
+                orbit._itemH = mobile ? 196 : 280;
             }, 150);
         });
     }
 
-    // 弹性回弹边界：越界部分按 25% 比例透出，再回弹归位
-    function elasticClamp(v, min, max) {
-        if (v < min) return min + (v - min) * 0.25;
-        if (v > max) return max + (v - max) * 0.25;
-        return v;
-    }
-
-    function constellationLoop() {
-        // 自愈：若首帧画布尺寸为0（布局未完成），重算边界
-        if (!constellation.bounds.init && constellation.viewport.clientWidth > 0) {
-            computeBounds();
+    function orbitLoop() {
+        // 空闲自动旋转
+        if (!orbit.dragging) {
+            // 惯性减速：用户松开后角速度衰减回自动速度
+            orbit.vel *= 0.95;
+            if (Math.abs(orbit.vel) < 0.0006) orbit.vel = 0;
+            orbit.targetAngle += orbit.autoSpeed + orbit.vel;
         }
-        var b = constellation.bounds;
-        var elastic = false;
+        // 平滑跟随（Lerp）
+        orbit.angle += (orbit.targetAngle - orbit.angle) * 0.12;
 
-        // 惯性：释放后持续减速滑行
-        if (!constellation.dragging) {
-            constellation.targetX += constellation.velX;
-            constellation.targetY += constellation.velY;
-            constellation.velX *= 0.92;   // 摩擦系数
-            constellation.velY *= 0.92;
-            if (Math.abs(constellation.velX) < 0.05) constellation.velX = 0;
-            if (Math.abs(constellation.velY) < 0.05) constellation.velY = 0;
-        }
+        var cx = orbit.viewport.clientWidth / 2;
+        var cy = orbit.viewport.clientHeight / 2;
+        var items = orbit.items;
+        var R = orbit._R || 480;
 
-        // 边界检测：硬边界+弹性
-        if (constellation.targetX < b.minX) { constellation.targetX = elasticClamp(constellation.targetX, b.minX, b.maxX); constellation.velX *= 0.8; elastic = true; }
-        if (constellation.targetX > b.maxX) { constellation.targetX = elasticClamp(constellation.targetX, b.minX, b.maxX); constellation.velX *= 0.8; elastic = true; }
-        if (constellation.targetY < b.minY) { constellation.targetY = elasticClamp(constellation.targetY, b.minY, b.maxY); constellation.velY *= 0.8; elastic = true; }
-        if (constellation.targetY > b.maxY) { constellation.targetY = elasticClamp(constellation.targetY, b.minY, b.maxY); constellation.velY *= 0.8; elastic = true; }
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var a = it._baseAngle + orbit.angle;
+            // 柱面坐标：X = R·sin, Z = R·cos（Z 表示离相机深度）
+            var z = Math.cos(a) * R;
+            var x = Math.sin(a) * R;
+            var y = it._yOff;
 
-        // 弹性回弹时：目标回到边界内
-        if (elastic) {
-            constellation.targetX = Math.max(b.minX, Math.min(b.maxX, constellation.targetX));
-            constellation.targetY = Math.max(b.minY, Math.min(b.maxY, constellation.targetY));
-        }
+            // 深度排序：Z 大（前面）排上面
+            it.style.zIndex = Math.round(z + R);
 
-        // Lerp 平滑跟随（无拖拽时也让位置收敛到目标）
-        constellation.dragX += (constellation.targetX - constellation.dragX) * 0.14;
-        constellation.dragY += (constellation.targetY - constellation.dragY) * 0.14;
+            // 景深：背后模糊 + 透明，前面清晰
+            var depth = (z + R) / (R * 2);   // 0(远) ~ 1(近)
+            var blurAmt = (1 - depth) * 2.4;
+            var opacity = 0.45 + depth * 0.55;
 
-        // 应用 GPU transform
-        constellation.canvas.style.transform = 'translate3d(' + constellation.dragX.toFixed(2) + 'px,' + constellation.dragY.toFixed(2) + 'px,0)';
+            // 光源反射：面向中心（角度决定反射强度）
+            var facing = (Math.cos(a) + 1) / 2;   // 朝向相机时最亮
+            var glare = 0.18 + facing * 0.2;
 
-        // 磁性吸附：靠近光标的照片轻微偏移（只改 transform，不改布局）
-        var mx = constellation.mouse.x, my = constellation.mouse.y;
-        var vpR = constellation.viewport.getBoundingClientRect();
-        var baseX = constellation.dragX, baseY = constellation.dragY;
-        for (var i = 0; i < constellation.items.length; i++) {
-            var it = constellation.items[i];
-            // 屏幕坐标 = 画布偏移 + 自身位置
-            var sx = baseX + it._jx + it.clientWidth / 2;
-            var sy = baseY + it._jy + it.clientHeight / 2;
-            var dxm = mx - sx, dym = my - sy;
-            var dist2 = dxm * dxm + dym * dym;
-            var pull = 0;
-            if (dist2 < 3600) { // 60px 半径
-                pull = (1 - Math.sqrt(dist2) / 60) * 10;
+            // 屏幕投影：中心 + X 偏移（简化透视，Z 影响缩放）
+            var scale = 0.55 + depth * 0.55;
+            var screenX = cx + x * (0.75 + depth * 0.35);
+            var screenY = cy + y * scale - (1 - depth) * 60;
+
+            // tilt 跟随鼠标（轻微）
+            var tiltRX = 0, tiltRY = 0;
+            var hov = Math.abs(orbit.mouseX - screenX);
+            if (hov < 160) {
+                tiltRY = (orbit.mouseX - screenX) / 160 * 10;
             }
-            var mdx = dxm / (Math.sqrt(dist2) || 1) * pull * 0.6;
-            var mdy = dym / (Math.sqrt(dist2) || 1) * pull * 0.6;
-            // 组合磁性位移 + tilt 旋转（从 CSS 变量读取，拖拽与倾斜互不覆盖）
-            var trx = it.style.getPropertyValue('--tilt-rx') || '0deg';
-            var tryy = it.style.getPropertyValue('--tilt-ry') || '0deg';
-            it.style.transform = 'translate3d(' + mdx.toFixed(2) + 'px,' + mdy.toFixed(2) + 'px,0) scale(' + it._scale + ') perspective(1000px) rotateX(' + trx + ') rotateY(' + tryy + ')';
+
+            it.style.transform = 'translate3d(' + screenX.toFixed(1) + 'px,' + screenY.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ') rotateY(' + tiltRY.toFixed(1) + 'deg)';
+            it.style.filter = 'blur(' + blurAmt.toFixed(2) + 'px)';
+            it.style.opacity = opacity.toFixed(2);
+            // 反射高光：通过 box-shadow 模拟边缘受光
+            it.style.boxShadow = '0 0 ' + (glare * 120).toFixed(0) + 'px rgba(255,224,200,' + (glare * 0.5).toFixed(2) + '), inset 0 0 40px rgba(255,255,255,' + (glare * 0.35).toFixed(2) + ')';
+            // 存储角度供 hover 放大
+            it._depth = depth;
         }
 
-        constellation.raf = requestAnimationFrame(constellationLoop);
+        // 中心行星（光源头）静止于轨道中心
+        if (orbit.center) {
+            orbit.center.style.transform = 'translate3d(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(1)';
+        }
+
+        orbit.raf = requestAnimationFrame(orbitLoop);
     }
 
     function initGallery() {
-        initConstellation();
+        initOrbit();
     }
 
     // ============ 宇宙尘埃凝结入场动画 ============
@@ -1544,27 +1494,87 @@
     }
     function saveEchoes() { try { localStorage.setItem('starlight-echoes', JSON.stringify(userEchoes)); } catch(e) {} }
 
-    function createEchoCapsule(echo, isNew) {
-        var capsule = document.createElement('div');
-        capsule.className = 'echo-capsule';
-        if (isNew) { capsule.style.animation = 'none'; capsule.offsetHeight; capsule.style.animation = 'capsuleAppear 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)'; }
-        var coordsEl = document.createElement('div'); coordsEl.className = 'echo-capsule-coords'; coordsEl.textContent = echo.coords;
-        var authorEl = document.createElement('div'); authorEl.className = 'echo-capsule-author'; authorEl.textContent = '— ' + echo.author;
-        var bodyEl = document.createElement('div'); bodyEl.className = 'echo-capsule-body'; bodyEl.textContent = echo.body;
-        var timeEl = document.createElement('div'); timeEl.className = 'echo-capsule-time'; timeEl.textContent = echo.time || '✦ 已入轨';
-        capsule.appendChild(coordsEl); capsule.appendChild(authorEl); capsule.appendChild(bodyEl); capsule.appendChild(timeEl);
-        return capsule;
+    // ═══ 空间 HUD 回响信标（3D 漂浮）═══
+    var echoHUD = { stage: null, beacons: [], angle: 0, vel: 0, dragging: false, lastX: 0, raf: 0 };
+
+    function createEchoBeacon(echo) {
+        var beacon = document.createElement('div');
+        beacon.className = 'echo-beacon';
+        var coords = document.createElement('div'); coords.className = 'echo-beacon-coords'; coords.textContent = echo.coords;
+        var author = document.createElement('div'); author.className = 'echo-beacon-author'; author.textContent = '— ' + echo.author;
+        var body = document.createElement('div'); body.className = 'echo-beacon-body'; body.textContent = echo.body;
+        var time = document.createElement('div'); time.className = 'echo-beacon-time'; time.textContent = echo.time || '✦ 已入轨';
+        beacon.appendChild(coords); beacon.appendChild(author); beacon.appendChild(body); beacon.appendChild(time);
+        return beacon;
     }
 
-    function renderEchoStream() {
-        var track = document.getElementById('echoes-track');
-        if (!track) return;
-        track.innerHTML = '';
-        for (var dup = 0; dup < 2; dup++) {
-            for (var i = 0; i < echoesData.length; i++) {
-                track.appendChild(createEchoCapsule(echoesData[i], false));
-            }
+    function renderEchoHUD() {
+        var stage = document.getElementById('echo-hud-stage');
+        if (!stage) return;
+        stage.innerHTML = '';
+        echoHUD.beacons = [];
+        for (var i = 0; i < echoesData.length; i++) {
+            var beacon = createEchoBeacon(echoesData[i]);
+            // 环布：不同半径、相位、Y 高度，像环绕轨道的信标
+            var ring = (i % 4) + 1;                 // 1~4 层轨道
+            beacon._radius = 120 + ring * 60;       // 180~360px
+            beacon._baseAngle = (i / echoesData.length) * Math.PI * 2 + ring * 0.6;
+            beacon._yOff = (i % 3) * 60 - 60;       // -60 ~ 60 高度错落
+            beacon._ring = ring;
+            stage.appendChild(beacon);
+            echoHUD.beacons.push(beacon);
         }
+        bindEchoHUDEvents();
+        requestAnimationFrame(echoHUDLoop);
+    }
+
+    function bindEchoHUDEvents() {
+        var stage = echoHUD.stage = document.getElementById('echo-hud-stage');
+        if (!stage) return;
+        function start(x) { echoHUD.dragging = true; echoHUD.lastX = x; stage.classList.add('dragging'); }
+        function move(x) {
+            if (!echoHUD.dragging) return;
+            var dx = x - echoHUD.lastX;
+            echoHUD.lastX = x;
+            echoHUD.angle += dx * 0.008;
+            echoHUD.vel = dx * 0.008;
+        }
+        function end() { if (!echoHUD.dragging) return; echoHUD.dragging = false; stage.classList.remove('dragging'); }
+        stage.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX); });
+        window.addEventListener('mousemove', function(e) { move(e.clientX); });
+        window.addEventListener('mouseup', end);
+        stage.addEventListener('touchstart', function(e) { e.preventDefault(); start(e.touches[0].clientX); }, { passive: false });
+        stage.addEventListener('touchmove', function(e) { e.preventDefault(); move(e.touches[0].clientX); }, { passive: false });
+        stage.addEventListener('touchend', end);
+        stage.addEventListener('touchcancel', end);
+    }
+
+    function echoHUDLoop() {
+        var stage = echoHUD.stage;
+        if (!stage) return;
+        if (!echoHUD.dragging) {
+            echoHUD.vel *= 0.95;
+            if (Math.abs(echoHUD.vel) < 0.0008) echoHUD.vel = 0;
+            echoHUD.angle += 0.0018 + echoHUD.vel;   // 自动缓慢旋转
+        }
+        var sw = stage.clientWidth, sh = stage.clientHeight;
+        var cx = sw / 2, cy = sh / 2;
+        for (var i = 0; i < echoHUD.beacons.length; i++) {
+            var b = echoHUD.beacons[i];
+            var a = b._baseAngle + echoHUD.angle;
+            var z = Math.cos(a) * b._radius;
+            var x = Math.sin(a) * b._radius * 0.7;
+            var depth = (z + b._radius) / (b._radius * 2);
+            var scale = 0.7 + depth * 0.5;
+            var opacity = 0.3 + depth * 0.7;
+            var blur = (1 - depth) * 2;
+            var sy = cy + b._yOff * scale;
+            b.style.zIndex = Math.round(z + b._radius);
+            b.style.transform = 'translate3d(' + (cx + x).toFixed(1) + 'px,' + sy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ')';
+            b.style.opacity = opacity.toFixed(2);
+            b.style.filter = 'blur(' + blur.toFixed(2) + 'px)';
+        }
+        echoHUD.raf = requestAnimationFrame(echoHUDLoop);
     }
 
     function addEcho(author, body) {
@@ -1572,7 +1582,7 @@
         var ts = now.getFullYear() + '.' + String(now.getMonth()+1).padStart(2,'0') + '.' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
         var echo = { coords: '[ 新信号 · ' + ts + ' ]', author: author || '匿名旅人', body: body, time: '✦ 刚刚入轨' };
         userEchoes.unshift(echo); saveEchoes();
-        echoesData = userEchoes.concat(presetEchoes); renderEchoStream();
+        echoesData = userEchoes.concat(presetEchoes); renderEchoHUD();
         return echo;
     }
 
@@ -1710,15 +1720,11 @@
                 });
         });
 
-        var track = document.getElementById('echoes-track');
-        if (track) {
-            track.addEventListener('mouseenter', function() { track.classList.add('paused'); });
-            track.addEventListener('mouseleave', function() { track.classList.remove('paused'); });
-        }
+        // 空间 HUD 信标不设暂停（随宇宙持续旋转）
     }
 
     function initEchoes() {
-        loadEchoes(); renderEchoStream(); initEchoModal();
+        loadEchoes(); renderEchoHUD(); initEchoModal();
         var launchBtn = document.getElementById('echo-launch-btn');
         if (launchBtn) {
             launchBtn.addEventListener('click', function() {
