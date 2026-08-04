@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#07070f">
     <meta name="description" content="我为你保存了一段时间，在这片属于我们的星河里，每一颗星辰都在为你闪烁。">
-    <meta property="og:title" content="To Pop Tianou：专属星河宇宙">
+    <meta property="og:title" content="To Pop Tianyou：专属星河宇宙">
     <meta property="og:description" content="失重宇宙中的恋爱计时与记忆档案馆">
     <meta property="og:type" content="website">
     <!-- og:image 可替换为专用朋友圈封面图（建议 500×500 以上、https 直链） -->
     <meta property="og:image" content="https://pop-yu.github.io/lumiere-birthday/images/1.jpg">
-    <title>To Pop Tianou：专属星河宇宙</title>
+    <title>To Pop Tianyou：专属星河宇宙</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Inter:wght@200;300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700&family=Noto+Serif+SC:wght@300;400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -83,7 +83,8 @@
         <section id="hero" class="hero" data-parallax="0.15">
             <div class="planets-stage" id="planets-stage">
                 <div class="planet-wrapper left-planet" id="left-planet-wrapper">
-                    <div class="planet" id="planet-left">
+                    <div class="planet avatar-planet" id="planet-left">
+                        <img src="images/bubu.jpg" class="avatar-img" alt="HIM">
                         <div class="planet-surface left-surface"></div>
                         <div class="planet-glow left-glow"></div>
                         <div class="planet-ring-left"></div>
@@ -94,7 +95,8 @@
                     <svg viewBox="0 0 600 200" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="orbitGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(212,175,135,0.1)"/><stop offset="25%" stop-color="rgba(212,175,135,0.6)"/><stop offset="50%" stop-color="rgba(255,220,180,0.8)"/><stop offset="75%" stop-color="rgba(180,150,210,0.5)"/><stop offset="100%" stop-color="rgba(180,150,210,0.1)"/></linearGradient></defs><ellipse cx="300" cy="130" rx="270" ry="55" fill="none" stroke="url(#orbitGrad)" stroke-width="0.8" stroke-dasharray="4 8"/><ellipse cx="300" cy="130" rx="220" ry="35" fill="none" stroke="rgba(212,175,135,0.25)" stroke-width="0.5" stroke-dasharray="2 10"/></svg>
                 </div>
                 <div class="planet-wrapper right-planet" id="right-planet-wrapper">
-                    <div class="planet" id="planet-right">
+                    <div class="planet avatar-planet" id="planet-right">
+                        <img src="images/huahua.jpg" class="avatar-img" alt="花花">
                         <div class="planet-surface right-surface"></div>
                         <div class="planet-glow right-glow"></div>
                         <div class="planet-ring-right"></div>
@@ -149,13 +151,8 @@
             <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
             <h2 class="section-heading">Memory Archive</h2>
             <p class="section-sub">失重宇宙中，我们的每一帧回忆</p>
-            <div class="gallery-masonry" id="gallery-masonry">
-                <div class="masonry-placeholder ph-1"><img src="images/1.jpg" alt="Memory placeholder 1" loading="lazy"></div>
-                <div class="masonry-placeholder ph-2"><img src="images/2.jpg" alt="Memory placeholder 2" loading="lazy"></div>
-                <div class="masonry-placeholder ph-3"><img src="images/3.jpg" alt="Memory placeholder 3" loading="lazy"></div>
-                <div class="masonry-placeholder ph-4"><img src="images/4.jpg" alt="Memory placeholder 4" loading="lazy"></div>
-                <div class="masonry-placeholder ph-5"><img src="images/5.jpg" alt="Memory placeholder 5" loading="lazy"></div>
-                <div class="masonry-placeholder ph-6"><img src="images/6.jpg" alt="Memory placeholder 6" loading="lazy"></div>
+            <div class="gallery-viewport" id="gallery-viewport">
+                <div class="constellation-canvas" id="constellation-canvas"></div>
             </div>
         </section>
 

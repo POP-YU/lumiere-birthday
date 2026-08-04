@@ -553,8 +553,27 @@
         return true;
     }
 
+    // 极简 BGM Toast：淡入 → 上浮 → 淡出 → 4s 后销毁
+    function showBgmToast() {
+        var existing = document.querySelector('.bgm-toast');
+        if (existing) existing.remove();
+        var toast = document.createElement('div');
+        toast.className = 'bgm-toast';
+        toast.textContent = '🎵 正在接收专属星河频段…';
+        document.body.appendChild(toast);
+        // 强制回流以触发入场动画
+        void toast.offsetWidth;
+        toast.classList.add('show');
+        setTimeout(function() {
+            toast.classList.remove('show');
+            toast.classList.add('hide');
+            setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 700);
+        }, 4000);
+    }
+
     // 初始化音频播放（由"开启宇宙"按钮在用户手势内触发，绕过自动播放限制）
     function startBGM() {
+        showBgmToast();
         var c = initMusicCtx();
         if (c && c.state === 'suspended') { try { c.resume(); } catch(e) {} }
         // 已有可用音源 → 恢复播放（绝不重复启动引擎造成双声）
@@ -652,7 +671,7 @@
                 o.start(); o.stop(musicCtx.currentTime + dur + 0.1);
             } catch(e) {}
         }
-        document.querySelectorAll('.gallery-item, .echo-capsule, .gate-btn, .echo-launch-btn').forEach(function(el) {
+        document.querySelectorAll('.constellation-item, .echo-capsule, .gate-btn, .echo-launch-btn').forEach(function(el) {
             el.addEventListener('mouseenter', function() { playSfx(300 + Math.random()*200, 'sine', 0.2, 0.03); });
         });
         document.querySelectorAll('button').forEach(function(el) {
@@ -756,7 +775,9 @@
         var planetSize = isMobile ? 90 : 120;
         var canvasSize = planetSize * 2;
 
-        leftPlanet.innerHTML = ''; rightPlanet.innerHTML = '';
+        // 只清除旧的 3D 表面 canvas，保留头像 <img>（avatar-planet 模式）
+        var existingLeft = leftPlanet.querySelector('canvas'); if (existingLeft) existingLeft.remove();
+        var existingRight = rightPlanet.querySelector('canvas'); if (existingRight) existingRight.remove();
 
         planetLeftCanvas = document.createElement('canvas');
         planetLeftCanvas.width = canvasSize; planetLeftCanvas.height = canvasSize;
@@ -919,121 +940,289 @@
 
     function createGalleryItem(src, index) {
         var div = document.createElement('div');
-        div.className = 'gallery-item';
+        div.className = 'constellation-item';
         div.setAttribute('data-index', index);
 
         var img = document.createElement('img');
         img.src = src;
         img.alt = 'Memory ' + index;
         img.loading = 'lazy';
+        img.draggable = false;
         div.appendChild(img);
 
-        var scanLine = document.createElement('div');
-        scanLine.className = 'scan-line';
-        div.appendChild(scanLine);
+        var frame = document.createElement('div');
+        frame.className = 'const-frame';
+        frame.textContent = '#' + String(index).padStart(2, '0') + ' · CONSTELLATION';
+        div.appendChild(frame);
 
-        var frameNum = document.createElement('div');
-        frameNum.className = 'gallery-frame-num';
-        frameNum.textContent = '#' + String(index).padStart(2, '0');
-        div.appendChild(frameNum);
-
-        var glowOverlay = document.createElement('div');
-        glowOverlay.className = 'cosmic-glow-overlay';
-        div.appendChild(glowOverlay);
-
-        div._entrancePlayed = false;
-
-        div.addEventListener('click', function() {
-            if (!div._entrancePlayed) return;
+        div.addEventListener('click', function(e) {
+            e.stopPropagation();
             openPortal(src, index);
         });
-
         return div;
     }
 
-    function initGallery() {
-        var grid = document.getElementById('gallery-masonry');
-        if (!grid) return;
-        // 清空静态占位图，由真实照片瀑布流接管
+    // ═══════ 惯性拖拽星象图引擎 (Inertia-Draggable Constellation) ═══════
+    var constellation = {
+        viewport: null, canvas: null, items: [],
+        dragX: 0, dragY: 0,          // 当前偏移
+        targetX: 0, targetY: 0,      // 目标偏移（含惯性速度）
+        velX: 0, velY: 0,            // 惯性速度
+        dragging: false, pointerId: null,
+        lastX: 0, lastY: 0,          // 上一帧指针位置
+        bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+        mouse: { x: -9999, y: -9999 }, // 视口内光标，用于磁性吸附
+        raf: 0
+    };
+
+    function initConstellation() {
+        constellation.viewport = document.getElementById('gallery-viewport');
+        constellation.canvas = document.getElementById('constellation-canvas');
+        if (!constellation.viewport || !constellation.canvas) return;
+
+        constellation.items = [];
+        var grid = constellation.canvas;
         grid.innerHTML = '';
+
         var totalPhotos = window.TOTAL_REAL_PHOTOS || 11;
         var loaded = 0;
-
         for (var i = 1; i <= totalPhotos; i++) {
             (function(idx) {
                 var src = 'images/' + idx + '.jpg';
                 loadImage(src).then(function() {
                     galleryPhotos.push({ src: src, index: idx });
                     loaded++;
-                    if (loaded === totalPhotos) renderGallery(grid);
+                    if (loaded === totalPhotos) renderConstellation();
                 }).catch(function() {
                     var dataUrl = generateCosmicArt(idx);
                     galleryPhotos.push({ src: dataUrl, index: idx, isGenerated: true });
                     loaded++;
-                    if (loaded === totalPhotos) renderGallery(grid);
+                    if (loaded === totalPhotos) renderConstellation();
                 });
             })(i);
         }
 
-        function renderGallery(grid) {
+        function renderConstellation() {
             galleryPhotos.sort(function(a, b) { return a.index - b.index; });
-            galleryPhotos.forEach(function(photo) {
-                grid.appendChild(createGalleryItem(photo.src, photo.index));
+            var W = constellation.canvas.clientWidth || 3000;
+            var H = constellation.canvas.clientHeight || 2000;
+            var padX = W * 0.1, padY = H * 0.1;
+            // 用伪随机网格散布照片，避免重叠，又不显呆板
+            var cols = 4, rows = 3;
+            var cellW = (W - padX * 2) / cols, cellH = (H - padY * 2) / rows;
+            galleryPhotos.forEach(function(photo, k) {
+                var item = createGalleryItem(photo.src, photo.index);
+                var col = k % cols, row = Math.floor(k / cols);
+                var jx = (col + 0.5) * cellW + padX + (Math.sin(k * 12.9898) * 0.5) * cellW * 0.35;
+                var jy = (row + 0.5) * cellH + padY + (Math.cos(k * 78.233) * 0.5) * cellH * 0.35;
+                // 尺寸微变化
+                var scaleV = 0.8 + ((k * 37) % 5) * 0.09;
+                item.style.left = jx + 'px';
+                item.style.top = jy + 'px';
+                item.style.transform = 'translate3d(0,0,0) scale(' + scaleV.toFixed(2) + ')';
+                item._scale = scaleV;
+                item._jx = jx; item._jy = jy;
+                grid.appendChild(item);
+                constellation.items.push(item);
             });
-            initEntranceAnimations();
-            grid.addEventListener('click', function(e) {
-                var card = e.target.closest('.gallery-item');
-                if (!card || !card._entrancePlayed) return;
-                var idx = parseInt(card.getAttribute('data-index'));
-                if (!idx) return;
-                var photo = galleryPhotos.find(function(p) { return p.index === idx; });
-                if (photo && !portalActive) openPortal(photo.src, photo.index);
-            });
+            // 布局完成后再算边界与居中（clientWidth 此时才可靠）
+            computeBounds();
+            centerConstellation();
+            bindConstellationEvents();
+            requestAnimationFrame(constellationLoop);
         }
+    }
+
+    function computeBounds() {
+        var vpW = constellation.viewport.clientWidth, vpH = constellation.viewport.clientHeight;
+        var cW = constellation.canvas.clientWidth, cH = constellation.canvas.clientHeight;
+        // 有效偏移范围：[-range, 0]，居中 = -range/2
+        constellation.bounds.minX = -(cW - vpW);
+        constellation.bounds.maxX = 0;
+        constellation.bounds.minY = -(cH - vpH);
+        constellation.bounds.maxY = 0;
+        constellation.bounds.init = cW > 0 && cH > 0;
+    }
+
+    function centerConstellation() {
+        constellation.dragX = (constellation.bounds.minX + constellation.bounds.maxX) / 2;
+        constellation.dragY = (constellation.bounds.minY + constellation.bounds.maxY) / 2;
+        constellation.targetX = constellation.dragX;
+        constellation.targetY = constellation.dragY;
+        constellation.velX = 0; constellation.velY = 0;
+    }
+
+    function bindConstellationEvents() {
+        var vp = constellation.viewport;
+
+        function pointerStart(x, y, pid) {
+            constellation.dragging = true;
+            constellation.pointerId = pid;
+            constellation.lastX = x; constellation.lastY = y;
+            constellation.velX = 0; constellation.velY = 0;
+            vp.classList.add('dragging');
+            if (vp.setPointerCapture) { try { vp.setPointerCapture(pid); } catch(e) {} }
+        }
+        function pointerMove(x, y) {
+            if (!constellation.dragging) {
+                // 悬停跟踪由 viewport 的 mousemove 处理器负责（viewport 相对坐标）
+                // 此处 window 级处理器不再写 mouse，避免与 viewport 坐标系混用
+                return;
+            }
+            var dx = x - constellation.lastX, dy = y - constellation.lastY;
+            constellation.lastX = x; constellation.lastY = y;
+            // 目标位置随拖动移动；用帧时间归一化速度
+            constellation.targetX += dx;
+            constellation.targetY += dy;
+            constellation.velX = dx; constellation.velY = dy;
+        }
+        function pointerEnd() {
+            if (!constellation.dragging) return;
+            constellation.dragging = false;
+            constellation.pointerId = null;
+            vp.classList.remove('dragging');
+        }
+
+        // Mouse
+        vp.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            pointerStart(e.clientX, e.clientY, 'm');
+        });
+        window.addEventListener('mousemove', function(e) {
+            pointerMove(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', pointerEnd);
+
+        // Touch
+        vp.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            var t = e.touches[0];
+            pointerStart(t.clientX, t.clientY, t.identifier);
+        }, { passive: false });
+        vp.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            var t = e.touches[0];
+            pointerMove(t.clientX, t.clientY);
+        }, { passive: false });
+        vp.addEventListener('touchend', pointerEnd);
+        vp.addEventListener('touchcancel', pointerEnd);
+
+        // 视口内光标位置（磁性吸附基准）
+        vp.addEventListener('mousemove', function(e) {
+            var r = vp.getBoundingClientRect();
+            constellation.mouse.x = e.clientX - r.left;
+            constellation.mouse.y = e.clientY - r.top;
+        });
+        vp.addEventListener('mouseleave', function() {
+            constellation.mouse.x = -9999; constellation.mouse.y = -9999;
+        });
+
+        // 点击拖拽后不触发放大
+        vp.addEventListener('click', function(e) {
+            if (Math.abs(constellation.velX) + Math.abs(constellation.velY) > 0.5) e.stopPropagation();
+        });
+
+        // 窗口缩放时重算边界（防抖）
+        var resizeT = null;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeT);
+            resizeT = setTimeout(function() {
+                computeBounds();
+                constellation.targetX = Math.max(constellation.bounds.minX, Math.min(constellation.bounds.maxX, constellation.targetX));
+                constellation.targetY = Math.max(constellation.bounds.minY, Math.min(constellation.bounds.maxY, constellation.targetY));
+            }, 150);
+        });
+    }
+
+    // 弹性回弹边界：越界部分按 25% 比例透出，再回弹归位
+    function elasticClamp(v, min, max) {
+        if (v < min) return min + (v - min) * 0.25;
+        if (v > max) return max + (v - max) * 0.25;
+        return v;
+    }
+
+    function constellationLoop() {
+        // 自愈：若首帧画布尺寸为0（布局未完成），重算边界
+        if (!constellation.bounds.init && constellation.viewport.clientWidth > 0) {
+            computeBounds();
+        }
+        var b = constellation.bounds;
+        var elastic = false;
+
+        // 惯性：释放后持续减速滑行
+        if (!constellation.dragging) {
+            constellation.targetX += constellation.velX;
+            constellation.targetY += constellation.velY;
+            constellation.velX *= 0.92;   // 摩擦系数
+            constellation.velY *= 0.92;
+            if (Math.abs(constellation.velX) < 0.05) constellation.velX = 0;
+            if (Math.abs(constellation.velY) < 0.05) constellation.velY = 0;
+        }
+
+        // 边界检测：硬边界+弹性
+        if (constellation.targetX < b.minX) { constellation.targetX = elasticClamp(constellation.targetX, b.minX, b.maxX); constellation.velX *= 0.8; elastic = true; }
+        if (constellation.targetX > b.maxX) { constellation.targetX = elasticClamp(constellation.targetX, b.minX, b.maxX); constellation.velX *= 0.8; elastic = true; }
+        if (constellation.targetY < b.minY) { constellation.targetY = elasticClamp(constellation.targetY, b.minY, b.maxY); constellation.velY *= 0.8; elastic = true; }
+        if (constellation.targetY > b.maxY) { constellation.targetY = elasticClamp(constellation.targetY, b.minY, b.maxY); constellation.velY *= 0.8; elastic = true; }
+
+        // 弹性回弹时：目标回到边界内
+        if (elastic) {
+            constellation.targetX = Math.max(b.minX, Math.min(b.maxX, constellation.targetX));
+            constellation.targetY = Math.max(b.minY, Math.min(b.maxY, constellation.targetY));
+        }
+
+        // Lerp 平滑跟随（无拖拽时也让位置收敛到目标）
+        constellation.dragX += (constellation.targetX - constellation.dragX) * 0.14;
+        constellation.dragY += (constellation.targetY - constellation.dragY) * 0.14;
+
+        // 应用 GPU transform
+        constellation.canvas.style.transform = 'translate3d(' + constellation.dragX.toFixed(2) + 'px,' + constellation.dragY.toFixed(2) + 'px,0)';
+
+        // 磁性吸附：靠近光标的照片轻微偏移（只改 transform，不改布局）
+        var mx = constellation.mouse.x, my = constellation.mouse.y;
+        var vpR = constellation.viewport.getBoundingClientRect();
+        var baseX = constellation.dragX, baseY = constellation.dragY;
+        for (var i = 0; i < constellation.items.length; i++) {
+            var it = constellation.items[i];
+            // 屏幕坐标 = 画布偏移 + 自身位置
+            var sx = baseX + it._jx + it.clientWidth / 2;
+            var sy = baseY + it._jy + it.clientHeight / 2;
+            var dxm = mx - sx, dym = my - sy;
+            var dist2 = dxm * dxm + dym * dym;
+            var pull = 0;
+            if (dist2 < 3600) { // 60px 半径
+                pull = (1 - Math.sqrt(dist2) / 60) * 10;
+            }
+            var mdx = dxm / (Math.sqrt(dist2) || 1) * pull * 0.6;
+            var mdy = dym / (Math.sqrt(dist2) || 1) * pull * 0.6;
+            it.style.transform = 'translate3d(' + mdx.toFixed(2) + 'px,' + mdy.toFixed(2) + 'px,0) scale(' + it._scale + ')';
+        }
+
+        constellation.raf = requestAnimationFrame(constellationLoop);
+    }
+
+    function initGallery() {
+        initConstellation();
     }
 
     // ============ 宇宙尘埃凝结入场动画 ============
     function initEntranceAnimations() {
-        if (!window.IntersectionObserver) {
-            document.querySelectorAll('.gallery-item').forEach(function(item) {
-                item.style.opacity = '1'; item._entrancePlayed = true;
-            });
-            return;
+        // 星象图模式：入场时视口整体淡入
+        var vp = document.getElementById('gallery-viewport');
+        if (vp) {
+            vp.style.opacity = '0';
+            vp.style.transform = 'translateY(24px)';
+            setTimeout(function() {
+                vp.style.transition = 'opacity 1s cubic-bezier(.16,1,.3,1), transform 1s cubic-bezier(.16,1,.3,1)';
+                vp.style.opacity = '1';
+                vp.style.transform = 'translateY(0)';
+            }, 200);
         }
-        var entranceObserver = new IntersectionObserver(function(entries) {
-            entries.forEach(function(entry) {
-                if (entry.isIntersecting) {
-                    var item = entry.target;
-                    if (item._entrancePlayed) return;
-                    item._entrancePlayed = true;
-                    var idx = parseInt(item.getAttribute('data-index')) || 0;
-                    var staggerDelay = (idx % 4) * 80;
-                    setTimeout(function() {
-                        item.classList.add('cosmic-entrance');
-                        item.addEventListener('animationend', function onAnimEnd(e) {
-                            if (e.animationName === 'cosmicMaterialize') {
-                                item.classList.remove('cosmic-entrance');
-                                item.classList.add('entrance-done');
-                                item.style.opacity = '1';
-                                item.removeEventListener('animationend', onAnimEnd);
-                            }
-                        });
-                    }, staggerDelay);
-                    entranceObserver.unobserve(item);
-                }
-            });
-        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-        document.querySelectorAll('.gallery-item').forEach(function(item) { entranceObserver.observe(item); });
     }
 
     // ============ 3D 深度视差更新 ============
     function updateGalleryDepth() {
-        // 瀑布流(columns)布局下不施加平移/缩放，避免破坏列内自然排布
-        var items = document.querySelectorAll('.gallery-item');
-        items.forEach(function(item) {
-            if (!item._entrancePlayed) return;
-            item.style.opacity = '1';
-        });
+        // 星象图由惯性引擎驱动，无需额外深度变换
     }
 
     // ============ 记忆维度沉浸展厅 ============
@@ -1057,7 +1246,7 @@
     function openPortal(src, index) {
         if (portalActive) return;
         portalActive = true;
-        var items = document.querySelectorAll('.gallery-item');
+        var items = document.querySelectorAll('.constellation-item');
         portalSourceEl = null;
         items.forEach(function(item) {
             if (item.querySelector('img') && item.querySelector('img').src === src) portalSourceEl = item;
