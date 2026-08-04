@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#07070f">
     <title>LUMIÈRE · For My Love</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,19 +59,20 @@
         <p class="gate-hint">Tap to unfold the universe</p>
     </div>
 
+    <!-- 音乐胶囊 · 黑胶唱片（固定在 main-content 之外，避免被滚动 transform 影响） -->
+    <div class="music-capsule" id="music-capsule">
+        <button class="music-btn glass-card" id="music-btn" aria-label="音乐播放" aria-pressed="false">
+            <span class="vinyl-disc" aria-hidden="true">
+                <span class="vinyl-ring"></span>
+                <span class="vinyl-label"><span class="vinyl-hole"></span></span>
+            </span>
+        </button>
+        <span class="music-tooltip" id="music-tooltip">COSMIC WAVES</span>
+        <audio id="bgm-audio" loop preload="none" src="music/music.mp3"></audio>
+    </div>
+
     <!-- 主内容 -->
     <main id="main-content" class="main-content hidden">
-        <!-- 音乐胶囊 -->
-        <div class="music-capsule" id="music-capsule">
-            <button class="music-btn glass-card" id="music-btn" aria-label="音乐播放">
-                <div class="wave-bars" id="wave-bars">
-                    <span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span>
-                </div>
-                <svg class="music-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-            </button>
-            <span class="music-tooltip">COSMIC WAVES</span>
-        </div>
-
         <!-- Hero -->
         <section id="hero" class="hero" data-parallax="0.15">
             <div class="planets-stage" id="planets-stage">
@@ -141,7 +143,14 @@
             <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
             <h2 class="section-heading">Memory Archive</h2>
             <p class="section-sub">失重宇宙中，我们的每一帧回忆</p>
-            <div class="gallery-grid" id="gallery-grid"></div>
+            <div class="gallery-masonry" id="gallery-masonry">
+                <div class="masonry-placeholder ph-1"><img src="images/1.jpg" alt="Memory placeholder 1" loading="lazy"></div>
+                <div class="masonry-placeholder ph-2"><img src="images/2.jpg" alt="Memory placeholder 2" loading="lazy"></div>
+                <div class="masonry-placeholder ph-3"><img src="images/3.jpg" alt="Memory placeholder 3" loading="lazy"></div>
+                <div class="masonry-placeholder ph-4"><img src="images/4.jpg" alt="Memory placeholder 4" loading="lazy"></div>
+                <div class="masonry-placeholder ph-5"><img src="images/5.jpg" alt="Memory placeholder 5" loading="lazy"></div>
+                <div class="masonry-placeholder ph-6"><img src="images/6.jpg" alt="Memory placeholder 6" loading="lazy"></div>
+            </div>
         </section>
 
         <footer class="footer"><p>Made with starlight · For My Love</p></footer>

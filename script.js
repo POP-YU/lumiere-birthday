@@ -12,20 +12,24 @@
     var starFrameSkip = 0, starFrameInterval = isMobile ? 3 : 2;
 
     function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        // 适配 Retina/高分屏：按 devicePixelRatio 缩放画布物理像素
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(window.innerWidth * dpr);
+        canvas.height = Math.round(window.innerHeight * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         initParticles();
     }
     function initParticles() {
-        var area = canvas.width * canvas.height;
+        var w = window.innerWidth, h = window.innerHeight;
+        var area = w * h;
         var density = isMobile ? 0.000018 : 0.000045;
         var count = Math.floor(area * density);
         count = Math.min(count, isMobile ? 60 : 140);
         particles = [];
         for (var i = 0; i < count; i++) {
             particles.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
+                x: Math.random() * w,
+                y: Math.random() * h,
                 size: Math.random() * 1.6 + 0.3,
                 baseX: 0, baseY: 0,
                 speed: Math.random() * 0.02 + 0.005,
@@ -43,7 +47,8 @@
     function drawStars() {
         starFrameSkip++;
         if (starFrameSkip % starFrameInterval !== 0) { animationId = requestAnimationFrame(drawStars); return; }
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var w = window.innerWidth, h = window.innerHeight;
+        ctx.clearRect(0, 0, w, h);
         var mx = mouse.x, my = mouse.y;
         for (var i = 0; i < particles.length; i++) {
             var p = particles[i];
@@ -57,8 +62,8 @@
             p.x += (p.baseX - p.x) * 0.01;
             p.y += (p.baseY - p.y) * 0.01;
             p.baseX += p.speed * 0.1;
-            if (p.baseX > canvas.width + 20) p.baseX = -20;
-            if (p.baseX < -20) p.baseX = canvas.width + 20;
+            if (p.baseX > w + 20) p.baseX = -20;
+            if (p.baseX < -20) p.baseX = w + 20;
             var alpha = p.opacity;
             if (p.twinkle) {
                 p.twinklePhase += p.twinkleSpeed;
@@ -158,6 +163,8 @@
                 main.style.visibility = 'visible';
                 main.style.pointerEvents = 'auto';
                 document.body.style.overflow = '';
+                var mc = document.getElementById('music-capsule');
+                if (mc) mc.classList.add('visible');
                 initChronograph();
                 init3DPlanets();
                 initGallery();
@@ -165,8 +172,8 @@
                 initSfx();
                 initLerpScroll();
                 initPortal();
-                // 音乐系统 — 最重要，立即启动
-                try { initMusicSystem(); } catch(err) { console.warn('[LUMIÈRE] Music init:', err); }
+                // 音乐系统 — 最重要，立即启动（用户手势内，可绕过自动播放限制）
+                try { initMusicSystem(); startBGM(); } catch(err) { console.warn('[LUMIÈRE] Music init:', err); }
             }, 600);
         }, { once: true });
     }
@@ -450,72 +457,127 @@
         musicTimers.push(setTimeout(playStardust, 1500 + Math.random() * 3000));
     }
 
-    function initMusicSystem() {
+    // ═══ 统一的 BGM 播放器 ═══
+    // 策略：优先播放 <audio> 黑胶音源(music/music.mp3)，
+    // 若音源缺失/加载失败则无缝回退到 WebAudio 星河旋律引擎。
+    var bgmAudio = null;
+    var audioFailed = false;
+    var audioAttempted = false;
+    var engineActive = false;
+
+    function setVinylPlaying(on) {
+        var btn = document.getElementById('music-btn');
+        if (btn) {
+            btn.classList.toggle('playing', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+    }
+
+    function setBGMVisuals(on) {
+        setVinylPlaying(on);
+        var tip = document.getElementById('music-tooltip');
+        if (!tip) return;
+        if (!on) { tip.textContent = 'PAUSED'; tip.classList.add('paused'); }
+        else if (audioFailed) { tip.textContent = 'STARLIGHT SYMPHONY'; tip.classList.remove('paused'); }
+        else { tip.textContent = 'COSMIC WAVES'; tip.classList.remove('paused'); }
+    }
+
+    function resumeEngine() {
+        if (!musicCtx) return;
+        musicMuted = false;
+        musicMasterGain.gain.linearRampToValueAtTime(0.75, musicCtx.currentTime + 0.8);
+        musicTimers.push(setTimeout(playMelodyStep, 200));
+        musicTimers.push(setTimeout(playChordCycle, 100));
+        musicTimers.push(setTimeout(playBassLine, 200));
+        musicTimers.push(setTimeout(playStardust, 200));
+        engineActive = true;
+        setBGMVisuals(true);
+    }
+
+    function initEngineOnce() {
         if (musicStarted) return;
         musicStarted = true;
         var c = initMusicCtx();
-        if (!c) { console.warn('[MUSIC] AudioContext不可用'); return; }
-        if (c.state === 'suspended') c.resume();
-
-        // 淡入主音量
+        if (!c) { setBGMVisuals(false); return; }
+        if (c.state === 'suspended') { try { c.resume(); } catch(e) {} }
         musicMasterGain.gain.setValueAtTime(0, c.currentTime);
         musicMasterGain.gain.linearRampToValueAtTime(0.75, c.currentTime + 2);
-
-        // 启动所有音乐层
-        chordStep = 0;
-        melodyIdx = 0;
+        chordStep = 0; melodyIdx = 0;
         musicTimers.push(setTimeout(playMelodyStep, 600));
         musicTimers.push(setTimeout(playChordCycle, 300));
         musicTimers.push(setTimeout(playBassLine, 900));
         musicTimers.push(setTimeout(playStardust, 2000));
+        engineActive = true;
+        setBGMVisuals(true);
+    }
 
-        // 音波条动画
-        var waveBars = document.querySelectorAll('.wave-bar');
-        waveBars.forEach(function(b) { b.classList.add('playing'); });
+    function startEngine() {
+        if (!musicCtx) return;
+        if (!musicStarted) { initEngineOnce(); return; }
+        if (engineActive) { musicMuted = false; return; }
+        // 暂停后恢复：重新拉起所有循环
+        resumeEngine();
+    }
 
-        // 音乐开关按钮
+    // 初始化音频播放（由"开启宇宙"按钮在用户手势内触发，绕过自动播放限制）
+    function startBGM() {
+        var c = initMusicCtx();
+        if (c && c.state === 'suspended') { try { c.resume(); } catch(e) {} }
+        if (bgmAudio && !audioFailed && !audioAttempted) {
+            audioAttempted = true;
+            var playPromise = bgmAudio.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.then(function() {
+                    setBGMVisuals(true);
+                }).catch(function() {
+                    audioFailed = true;
+                    // 音源缺失/格式不支持 → 回退 WebAudio 引擎
+                    startEngine();
+                });
+            } else {
+                setBGMVisuals(true);
+            }
+            return;
+        }
+        // 无 <audio> 或已标记失败 → 直接走引擎
+        startEngine();
+    }
+
+    function pauseBGM() {
+        if (bgmAudio && !audioFailed) {
+            try { bgmAudio.pause(); } catch(e) {}
+        } else if (musicCtx) {
+            // 引擎淡出并挂起所有循环
+            musicMuted = true;
+            musicMasterGain.gain.linearRampToValueAtTime(0, musicCtx.currentTime + 1.2);
+            musicTimers.forEach(function(t) { clearTimeout(t); });
+            musicTimers = [];
+            var t = musicCtx.currentTime;
+            musicActiveOscillators.forEach(function(o) { try { o.stop(t + 0.1); } catch(e) {} });
+            musicActiveOscillators = [];
+            currentPadVoices = [];
+            engineActive = false;
+        }
+    }
+
+    function initMusicSystem() {
+        bgmAudio = document.getElementById('bgm-audio');
         var musicBtn = document.getElementById('music-btn');
         if (!musicBtn) return;
 
-        // 移除旧监听器
+        // 移除旧监听器（避免重复绑定）
         var newBtn = musicBtn.cloneNode(true);
         musicBtn.parentNode.replaceChild(newBtn, musicBtn);
         musicBtn = newBtn;
 
         musicBtn.addEventListener('click', function() {
-            if (!musicCtx) return;
-            if (musicCtx.state === 'suspended') musicCtx.resume();
-
-            if (musicMuted) {
-                // 取消静音
-                musicMuted = false;
-                musicMasterGain.gain.linearRampToValueAtTime(0.75, musicCtx.currentTime + 0.8);
-                var wb = document.querySelectorAll('.wave-bar');
-                wb.forEach(function(b) { b.classList.add('playing'); });
+            if (!musicPlaying) {
                 musicPlaying = true;
-                // 重启循环
-                melodyIdx = 0; chordStep = 0;
-                playMelodyStep();
-                playChordCycle();
-                playBassLine();
-                playStardust();
+                startBGM();
             } else {
-                // 静音
-                musicMuted = true;
-                musicMasterGain.gain.linearRampToValueAtTime(0, musicCtx.currentTime + 1.2);
-                var wb = document.querySelectorAll('.wave-bar');
-                wb.forEach(function(b) { b.classList.remove('playing'); });
                 musicPlaying = false;
-                // 清理所有定时器
-                musicTimers.forEach(function(t) { clearTimeout(t); });
-                musicTimers = [];
-                // 清理振荡器
-                var t = musicCtx.currentTime;
-                musicActiveOscillators.forEach(function(o) {
-                    try { o.stop(t + 0.1); } catch(e) {}
-                });
-                musicActiveOscillators = [];
-                currentPadVoices = [];
+                setBGMVisuals(false);
+                pauseBGM();
             }
         });
     }
@@ -709,6 +771,8 @@
     }
 
     // ============ 时光罗盘 ============
+    function setChrono(id, v) { var el = document.getElementById(id); if (el) el.textContent = String(v).padStart(2, '0'); }
+
     function updateChrono() {
         var now = new Date();
         var years = now.getFullYear() - SINCE_DATE.getFullYear();
@@ -717,23 +781,26 @@
         var hours = now.getHours() - SINCE_DATE.getHours();
         var minutes = now.getMinutes() - SINCE_DATE.getMinutes();
         var seconds = now.getSeconds() - SINCE_DATE.getSeconds();
+
+        // 借位处理：秒 → 分 → 时 → 日 → 月 → 年 逐级补齐
         if (seconds < 0) { seconds += 60; minutes--; }
         if (minutes < 0) { minutes += 60; hours--; }
         if (hours < 0) { hours += 24; days--; }
         if (days < 0) {
-            var prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
-            days += prevMonthLastDay; months--;
+            // new Date(y, m, 0).getDate() 即"本月第0天"= 上月最后一天，
+            // 自动正确处理闰年2月(28/29)与大小月(30/31)
+            days += new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+            months--;
         }
         if (months < 0) { months += 12; years--; }
+
         years = Math.max(0, years); months = Math.max(0, months); days = Math.max(0, days);
         hours = Math.max(0, hours); minutes = Math.max(0, minutes); seconds = Math.max(0, seconds);
-        document.getElementById('c-years').textContent = String(years).padStart(2, '0');
-        document.getElementById('c-months').textContent = String(months).padStart(2, '0');
-        document.getElementById('c-days').textContent = String(days).padStart(2, '0');
-        document.getElementById('c-hours').textContent = String(hours).padStart(2, '0');
-        document.getElementById('c-minutes').textContent = String(minutes).padStart(2, '0');
-        document.getElementById('c-seconds').textContent = String(seconds).padStart(2, '0');
-        document.getElementById('chrono-since').textContent = 'Since ' + SINCE_DATE.getFullYear() + '.' + String(SINCE_DATE.getMonth()+1).padStart(2,'0') + '.' + String(SINCE_DATE.getDate()).padStart(2,'0');
+
+        setChrono('c-years', years); setChrono('c-months', months); setChrono('c-days', days);
+        setChrono('c-hours', hours); setChrono('c-minutes', minutes); setChrono('c-seconds', seconds);
+        var sinceEl = document.getElementById('chrono-since');
+        if (sinceEl) sinceEl.textContent = 'Since ' + SINCE_DATE.getFullYear() + '.' + String(SINCE_DATE.getMonth()+1).padStart(2,'0') + '.' + String(SINCE_DATE.getDate()).padStart(2,'0');
     }
     function initChronograph() {
         updateChrono();
@@ -799,11 +866,6 @@
         div.className = 'gallery-item';
         div.setAttribute('data-index', index);
 
-        var zDepth = (Math.random() * 250 - 150).toFixed(0);
-        div.style.setProperty('--z-depth', zDepth + 'px');
-        div.style.transform = 'translate3d(0, 0, ' + zDepth + 'px)';
-        div.style.opacity = '0';
-
         var img = document.createElement('img');
         img.src = src;
         img.alt = 'Memory ' + index;
@@ -825,23 +887,6 @@
 
         div._entrancePlayed = false;
 
-        div.addEventListener('mousemove', function(e) {
-            if (!div._entrancePlayed) return;
-            var rect = div.getBoundingClientRect();
-            var x = e.clientX - rect.left, y = e.clientY - rect.top;
-            var cx = rect.width / 2, cy = rect.height / 2;
-            var rx = (y - cy) / cy * 15, ry = (x - cx) / cx * -15;
-            div.style.transform = 'translate3d(0, 0, 60px) rotateX(' + rx + 'deg) rotateY(' + ry + 'deg) scale(1.04)';
-            div.style.zIndex = '200';
-            div.style.boxShadow = '0 30px 80px rgba(212,175,135,0.3), 0 0 40px rgba(180,150,210,0.15)';
-        });
-        div.addEventListener('mouseleave', function() {
-            if (!div._entrancePlayed) return;
-            div.style.transform = 'translate3d(0, 0, ' + zDepth + 'px) rotateX(0) rotateY(0) scale(1)';
-            div.style.zIndex = '';
-            div.style.boxShadow = '';
-        });
-
         div.addEventListener('click', function() {
             if (!div._entrancePlayed) return;
             openPortal(src, index);
@@ -851,8 +896,10 @@
     }
 
     function initGallery() {
-        var grid = document.getElementById('gallery-grid');
+        var grid = document.getElementById('gallery-masonry');
         if (!grid) return;
+        // 清空静态占位图，由真实照片瀑布流接管
+        grid.innerHTML = '';
         var totalPhotos = window.TOTAL_REAL_PHOTOS || 11;
         var loaded = 0;
 
@@ -925,23 +972,11 @@
 
     // ============ 3D 深度视差更新 ============
     function updateGalleryDepth() {
+        // 瀑布流(columns)布局下不施加平移/缩放，避免破坏列内自然排布
         var items = document.querySelectorAll('.gallery-item');
-        var viewH = window.innerHeight;
-        var scrollY = smoothScrollY || window.pageYOffset || 0;
         items.forEach(function(item) {
             if (!item._entrancePlayed) return;
-            var rect = item.getBoundingClientRect();
-            var itemCenter = rect.top + rect.height / 2;
-            var distFromCenter = (itemCenter - viewH / 2) / (viewH * 0.7);
-            distFromCenter = Math.max(-1, Math.min(1, distFromCenter));
-            var zOffset = Math.abs(distFromCenter) * 120;
-            var opacity = 1 - Math.abs(distFromCenter) * 0.5;
-            var currentTransform = item.style.transform || '';
-            if (currentTransform.indexOf('rotateX') === -1 && item.classList.contains('entrance-done')) {
-                var baseZ = parseFloat(item.style.getPropertyValue('--z-depth')) || 0;
-                item.style.transform = 'translate3d(0, 0, ' + (baseZ - zOffset) + 'px) scale(' + (1 - Math.abs(distFromCenter) * 0.1) + ')';
-                item.style.opacity = opacity;
-            }
+            item.style.opacity = '1';
         });
     }
 
@@ -1312,6 +1347,59 @@
     document.getElementById('lightbox-close').addEventListener('click', function() { lightbox.classList.remove('active'); document.body.style.overflow = ''; });
     document.getElementById('lightbox-bg').addEventListener('click', function() { lightbox.classList.remove('active'); document.body.style.overflow = ''; });
     document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { lightbox.classList.remove('active'); document.body.style.overflow = ''; } });
+
+    // ============ 全局点击星辰/爱心爆裂特效 ============
+    var BURST_CHARS = ['✦', '❤', '✧', '❀', '·', '⋆'];
+    var clickBurstLayer = null;
+
+    function ensureBurstLayer() {
+        if (clickBurstLayer) return clickBurstLayer;
+        clickBurstLayer = document.createElement('div');
+        clickBurstLayer.className = 'click-burst-layer';
+        document.body.appendChild(clickBurstLayer);
+        return clickBurstLayer;
+    }
+
+    function spawnBurst(x, y) {
+        var layer = ensureBurstLayer();
+        // 固定 3 颗，避免低端机爆量
+        var count = 3;
+        var isTouch = false;
+        for (var i = 0; i < count; i++) {
+            var el = document.createElement('span');
+            el.className = 'click-burst';
+            el.textContent = BURST_CHARS[Math.floor(Math.random() * BURST_CHARS.length)];
+            var drift = (Math.random() - 0.5) * 26;
+            var rise = Math.random() * 34 + 20;
+            var scale = 0.6 + Math.random() * 0.9;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.style.setProperty('--drift', drift.toFixed(1) + 'px');
+            el.style.setProperty('--rise', rise.toFixed(1) + 'px');
+            el.style.setProperty('--burst-scale', scale.toFixed(2));
+            layer.appendChild(el);
+            // 动画结束(1s)后销毁，防止内存泄漏
+            (function(node) {
+                node.addEventListener('animationend', function() {
+                    if (node.parentNode) node.parentNode.removeChild(node);
+                }, { once: true });
+            })(el);
+            // 兜底清理：极端情况下动画事件未触发也移除
+            setTimeout(function() {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            }, 1600);
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        var x = e.clientX, y = e.clientY;
+        spawnBurst(x, y);
+    }, { passive: true });
+
+    document.addEventListener('touchstart', function(e) {
+        var t = e.touches[0];
+        if (t) spawnBurst(t.clientX, t.clientY);
+    }, { passive: true });
 
     // ============ 初始设定 ============
     document.getElementById('title-name').textContent = GF_NAME;

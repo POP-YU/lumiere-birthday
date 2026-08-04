@@ -1,6 +1,6 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:auto;overscroll-behavior:none}
-body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-serif;overflow-x:hidden;cursor:default;-webkit-font-smoothing:antialiased;position:relative}
+body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Inter','Noto Serif SC',sans-serif;overflow-x:hidden;cursor:default;-webkit-font-smoothing:antialiased;position:relative}
 .grain-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000}
 #starfield-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none!important}
 .parallax-bg-layer,.parallax-mid-layer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none!important;z-index:0}
@@ -58,17 +58,20 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .main-content{position:relative;z-index:1;transition:opacity 1.5s ease;will-change:transform;transform:translate3d(0,0,0)}
 .main-content.hidden{opacity:0;visibility:hidden}
 
-/* Music */
-.music-capsule{position:fixed;top:2rem;right:2rem;z-index:200;display:flex;align-items:center;gap:.6rem}
-.music-btn{background:rgba(15,15,30,.6);border:.5px solid rgba(212,175,135,.3);border-radius:50px;padding:.6rem 1rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;transition:all .4s ease;color:#d4af87}
-.music-btn:hover{border-color:rgba(212,175,135,.6);box-shadow:0 0 20px rgba(212,175,135,.2)}
-.music-tooltip{font-size:.6rem;color:rgba(180,150,210,.5);letter-spacing:.15em;white-space:nowrap;font-family:'Space Mono',monospace}
-.wave-bars{display:flex;align-items:flex-end;gap:2px;height:16px}
-.wave-bar{width:2px;background:#d4af87;border-radius:1px;transition:height .2s ease;height:4px}
-.wave-bar.playing{animation:waveAnim 1.2s ease-in-out infinite}
-.wave-bar:nth-child(2).playing{animation-delay:.1s}.wave-bar:nth-child(3).playing{animation-delay:.2s}
-.wave-bar:nth-child(4).playing{animation-delay:.3s}.wave-bar:nth-child(5).playing{animation-delay:.4s}
-@keyframes waveAnim{0%,100%{height:4px}50%{height:14px}}
+/* Music — 黑胶唱片播放器 */
+.music-capsule{position:fixed;top:2rem;right:2rem;z-index:300;display:flex;align-items:center;gap:.6rem;opacity:0;visibility:hidden;pointer-events:none;transform:translate3d(0,-10px,0);transition:opacity .8s ease .4s,visibility .8s ease .4s,transform .8s ease .4s}
+.music-capsule.visible{opacity:1;visibility:visible;pointer-events:auto;transform:translate3d(0,0,0)}
+.music-btn{background:rgba(15,15,30,.6);border:.5px solid rgba(212,175,135,.3);border-radius:50%;padding:.55rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .4s ease;color:#d4af87}
+.music-btn:hover{border-color:rgba(212,175,135,.6);box-shadow:0 0 24px rgba(212,175,135,.25)}
+.music-tooltip{font-size:.6rem;color:rgba(180,150,210,.5);letter-spacing:.15em;white-space:nowrap;font-family:'Space Mono',monospace;transition:color .4s ease}
+.music-tooltip.paused{color:rgba(180,150,210,.35)}
+.vinyl-disc{position:relative;display:block;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#1a1a22 0%,#0c0c12 55%,#05050a 100%);border:1px solid rgba(212,175,135,.18);animation:vinylSpin 4s linear infinite;animation-play-state:paused;will-change:transform;pointer-events:none}
+.music-btn.playing .vinyl-disc{animation-play-state:running}
+.vinyl-disc::after{content:'';position:absolute;inset:0;border-radius:50%;background:repeating-radial-gradient(circle at 50% 50%,transparent 0 2px,rgba(255,255,255,.035) 2px 3px);pointer-events:none}
+.vinyl-ring{position:absolute;top:50%;left:50%;transform:translate3d(-50%,-50%,0);width:26px;height:26px;border-radius:50%;border:1px solid rgba(212,175,135,.15);pointer-events:none}
+.vinyl-label{position:absolute;top:50%;left:50%;transform:translate3d(-50%,-50%,0);width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#d4af87 0%,#a67c4f 70%);display:flex;align-items:center;justify-content:center;pointer-events:none}
+.vinyl-hole{width:3px;height:3px;border-radius:50%;background:#0a0a10}
+@keyframes vinylSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 /* Hero */
 .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;padding:4rem 2rem;contain:layout style paint}
@@ -88,7 +91,7 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .hero-title{font-family:'Playfair Display','Noto Serif SC',serif;display:flex;flex-direction:column;gap:.5rem;margin-bottom:2rem}
 .title-line{font-size:2.8rem;font-weight:500;letter-spacing:.1em;background:linear-gradient(135deg,#d4af87,#f5e6d0,#b496c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .title-name{font-size:4.5rem;font-weight:700;letter-spacing:.15em;background:linear-gradient(135deg,#d4af87 20%,#f0dbb0 50%,#c9a9d9 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 40px rgba(212,175,135,.25)}
-.hero-desc{font-family:'Noto Serif SC',serif;font-size:1.1rem;line-height:1.8;color:rgba(200,190,220,.8);max-width:500px;margin:0 auto 3rem}
+.hero-desc{font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif;font-size:1.1rem;line-height:1.8;color:rgba(200,190,220,.8);max-width:500px;margin:0 auto 3rem}
 .scroll-hint{display:flex;flex-direction:column;align-items:center;gap:.5rem;opacity:.5;animation:floatHint 2s ease-in-out infinite}
 .scroll-arrow{width:1px;height:30px;background:linear-gradient(to bottom,transparent,#d4af87);position:relative}
 .scroll-arrow::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #d4af87}
@@ -104,7 +107,7 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .divider-line{width:60px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,135,.4),transparent)}
 .divider-icon{color:rgba(212,175,135,.5);font-size:.8rem}
 .section-heading{font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:600;text-align:center;background:linear-gradient(135deg,#d4af87,#e8d5c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}
-.section-sub{text-align:center;font-size:.85rem;color:rgba(180,150,200,.7);margin-bottom:3rem;letter-spacing:.1em}
+.section-sub{text-align:center;font-size:.85rem;color:rgba(180,150,200,.7);margin-bottom:3rem;letter-spacing:.1em;font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif}
 
 /* Chrono */
 .chrono-section{padding:6rem 2rem;position:relative;contain:layout style paint}
@@ -140,7 +143,7 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .echo-capsule-coords{font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(180,150,210,.7);letter-spacing:.15em;margin-bottom:.8rem;display:flex;align-items:center;gap:.4rem}
 .echo-capsule-coords::before{content:'◆';color:rgba(212,175,135,.5);font-size:.5rem}
 .echo-capsule-author{font-family:'Playfair Display',serif;font-size:.8rem;color:#d4af87;margin-bottom:.6rem;letter-spacing:.1em}
-.echo-capsule-body{font-family:'Noto Serif SC',serif;font-size:.85rem;line-height:1.7;color:rgba(200,190,220,.85)}
+.echo-capsule-body{font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif;font-size:.85rem;line-height:1.7;color:rgba(200,190,220,.85)}
 .echo-capsule-time{font-family:'Space Mono',monospace;font-size:.55rem;color:rgba(180,150,210,.4);margin-top:.8rem;text-align:right}
 
 /* Echo Modal */
@@ -165,19 +168,42 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .echo-submit-btn:hover .echo-submit-glow{opacity:1}
 .echo-particle-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:900}
 
-/* Gallery — 3D Space Array with cosmic depth */
+/* Gallery — 记忆相册瀑布流 (失重照片墙) */
 .gallery-section{padding:6rem 2rem;position:relative;contain:layout style paint}
 .gallery-section::before{content:'';position:absolute;top:10%;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse at center,rgba(100,60,180,.05) 0%,transparent 70%);pointer-events:none}
-.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2rem;max-width:1200px;margin:0 auto;perspective:1800px;transform-style:preserve-3d;position:relative!important;z-index:100!important;pointer-events:auto!important}
-.gallery-item{position:relative!important;z-index:101!important;pointer-events:auto!important;border-radius:18px;overflow:hidden;background:rgba(20,20,40,.4);border:.5px solid rgba(212,175,135,.2);cursor:pointer!important;transition:box-shadow .5s ease,border-color .5s ease;aspect-ratio:4/5;transform-style:preserve-3d;will-change:transform,opacity;transform:translate3d(0,0,0)}
-.gallery-item:hover{border-color:rgba(212,175,135,.5);box-shadow:0 30px 80px rgba(212,175,135,.3),0 0 40px rgba(180,150,210,.15)}
-.gallery-item img{width:100%;height:100%;object-fit:cover;transition:transform .8s ease;will-change:transform}
-.gallery-item:hover img{transform:translate3d(0,0,0) scale(1.08)}
-.gallery-item::after{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(212,175,135,.1) 0%,transparent 50%);pointer-events:none;z-index:1}
+
+/* CSS columns 瀑布流：桌面3列 / 移动2列 */
+.gallery-masonry{
+    columns:3;column-gap:1.4rem;max-width:1200px;margin:0 auto;
+    position:relative!important;z-index:100!important;pointer-events:auto!important;
+}
+.gallery-item,
+.masonry-placeholder{
+    display:block;width:100%;margin:0 0 1.4rem;break-inside:avoid;-webkit-column-break-inside:avoid;
+    position:relative!important;z-index:101!important;pointer-events:auto!important;
+    border-radius:18px;overflow:hidden;background:rgba(20,20,40,.4);
+    border:.5px solid rgba(212,175,135,.2);cursor:pointer!important;
+    transition:box-shadow .5s ease,border-color .5s ease,transform .5s cubic-bezier(.25,.46,.45,.94);
+    will-change:transform;transform:translate3d(0,0,0);
+}
+.gallery-item:hover,
+.masonry-placeholder:hover{
+    transform:translate3d(0,-6px,0) scale(1.02);
+    border-color:rgba(212,175,135,.5);
+    box-shadow:0 24px 60px rgba(138,43,226,.28),0 0 40px rgba(212,175,135,.22),0 0 80px rgba(255,255,255,.08);
+}
+.gallery-item img,.masonry-placeholder img{width:100%;height:auto;display:block;object-fit:cover;transition:transform .8s ease;will-change:transform}
+.gallery-item:hover img,.masonry-placeholder:hover img{transform:translate3d(0,0,0) scale(1.06)}
+.gallery-item::after,.masonry-placeholder::after{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,rgba(212,175,135,.1) 0%,transparent 50%);pointer-events:none;z-index:1}
 .gallery-item .scan-line{position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,135,.6),transparent);opacity:0;transition:opacity .3s;z-index:4;pointer-events:none}
 .gallery-item:hover .scan-line{opacity:1;animation:scanMove 2s ease-in-out infinite}
 .gallery-frame-num{position:absolute;bottom:10px;right:12px;font-family:'Space Mono',monospace;font-size:.6rem;color:rgba(212,175,135,.6);letter-spacing:.1em;z-index:5;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,.8)}
 @keyframes scanMove{0%{top:0}100%{top:100%}}
+
+/* 占位相片：不同高度营造错落节奏 */
+.masonry-placeholder img{height:auto}
+.ph-1{aspect-ratio:3/4}.ph-2{aspect-ratio:1/1}.ph-3{aspect-ratio:3/4.6}.ph-4{aspect-ratio:4/5}.ph-5{aspect-ratio:1/1.2}.ph-6{aspect-ratio:3/4.2}
+.masonry-placeholder{border-style:dashed;border-color:rgba(212,175,135,.3)}
 
 /* Cosmic glow overlay — used during entrance animation */
 .cosmic-glow-overlay{position:absolute;inset:0;pointer-events:none;z-index:2;opacity:0;background:radial-gradient(ellipse at 50% 40%,rgba(212,175,135,.35) 0%,rgba(180,150,210,.15) 40%,transparent 70%);transition:opacity 1.2s ease}
@@ -239,7 +265,7 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 @keyframes scanDown{0%{transform:translate3d(0,-100%,0)}100%{transform:translate3d(0,100%,0)}}
 .portal-text-panel{flex:1;padding:1rem}
 .portal-meta{font-family:'Space Mono',monospace;font-size:.65rem;color:rgba(180,150,210,.6);letter-spacing:.2em;margin-bottom:1.5rem}
-.portal-poem{font-family:'Noto Serif SC',serif;font-size:1.1rem;line-height:2.2;color:#e0d5c5;margin-bottom:2.5rem}
+.portal-poem{font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif;font-size:1.1rem;line-height:2.2;color:#e0d5c5;margin-bottom:2.5rem}
 .portal-return-btn{display:inline-flex;align-items:center;gap:.7rem;padding:.8rem 2rem;background:rgba(15,15,35,.6);border:.5px solid rgba(212,175,135,.3);border-radius:50px;color:#d4af87;font-family:'Noto Serif SC',serif;font-size:.9rem;letter-spacing:.1em;cursor:pointer;position:relative;transition:all .4s ease}
 .portal-return-btn:hover{border-color:rgba(212,175,135,.6);box-shadow:0 0 30px rgba(212,175,135,.2)}
 .portal-btn-ring{position:absolute;inset:-3px;border-radius:50px;border:1px solid rgba(212,175,135,.2);animation:gateSpin 8s linear infinite;pointer-events:none}
@@ -254,6 +280,21 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
 .lightbox-close{position:absolute;top:-40px;right:0;background:none;border:none;color:#d4af87;font-size:2rem;cursor:pointer;opacity:.7;transition:opacity .3s}
 .lightbox-close:hover{opacity:1}
 
+/* 全局点击星辰/爱心爆裂特效 */
+.click-burst-layer{position:fixed;top:0;left:0;width:0;height:0;z-index:4000;pointer-events:none!important;overflow:visible}
+.click-burst{
+    position:absolute;font-size:1rem;line-height:1;color:#e8c9a0;
+    text-shadow:0 0 8px rgba(212,175,135,.9),0 0 18px rgba(255,255,255,.5);
+    pointer-events:none!important;user-select:none;-webkit-user-select:none;
+    animation:burstFloat 1s ease-out forwards;will-change:transform,opacity;
+}
+@keyframes burstFloat{
+    0%{opacity:0;transform:translate3d(0,0,0) scale(.3) rotate(0deg)}
+    12%{opacity:1;transform:translate3d(var(--drift),-4px,0) scale(var(--burst-scale)) rotate(20deg)}
+    100%{opacity:0;transform:translate3d(calc(var(--drift)*1.6),calc(var(--rise)*-1),0) scale(calc(var(--burst-scale)*1.3)) rotate(60deg)}
+}
+@keyframes capsuleAppear{0%{opacity:0;transform:translate3d(0,20px,0) scale(0.8)}100%{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+
 /* Footer */
 .footer{text-align:center;padding:3rem;color:rgba(180,150,200,.4);font-size:.8rem;letter-spacing:.2em}
 
@@ -267,13 +308,15 @@ body{background:#07070f;color:#e8e0d5;font-family:'Inter','Noto Serif SC',sans-s
     .hero-title .title-line{font-size:2rem}.hero-title .title-name{font-size:3rem}
     .planet{width:90px;height:90px}.planet-ring-left{width:110px;height:110px}.planet-ring-right{width:100px;height:100px}
     .chrono-display{gap:.4rem;padding:1rem 1.5rem}.chrono-value{font-size:2rem}
-    .gallery-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));perspective:1000px}
+    .gallery-masonry{columns:2;column-gap:1rem}.gallery-item,.masonry-placeholder{margin-bottom:1rem}
     .portal-stage{flex-direction:column;gap:1.5rem}
     .gate-btn{padding:1.5rem 2.5rem}.gate-btn-text{font-size:1.2rem}
     .echoes-stream-track{gap:1rem}.echo-capsule{width:260px;padding:1.2rem}
     .echo-capsule-body{font-size:.78rem}
     .planet{width:80px;height:80px}
     .planet-ring-left{width:110px;height:110px}.planet-ring-right{width:100px;height:100px}
+    .music-capsule{top:1rem;right:1rem}
+    .vinyl-disc{width:30px;height:30px}
     /* Mobile GPU: reduce heavy effects */
     .gate-aurora{width:400px;height:400px}
     .gate-rings{width:300px;height:300px}
