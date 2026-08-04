@@ -1,8 +1,12 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:auto;overscroll-behavior:none}
-body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Inter','Noto Serif SC',sans-serif;overflow-x:hidden;cursor:default;-webkit-font-smoothing:antialiased;position:relative}
+body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Inter','Noto Serif SC',sans-serif;overflow-x:hidden;cursor:none;-webkit-font-smoothing:antialiased;position:relative}
+/* 交互元素强制隐藏默认光标，统一走自定义光标 */
+a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.music-btn,.gate-btn,.echo-capsule{cursor:none!important}
 .grain-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000}
-#starfield-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none!important}
+#starfield-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none!important}
+/* WebGL 宇宙流体背景 — 内容层最底（body 背景之上、星空画布之下） */
+.webgl-shader-bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none!important;opacity:.9}
 .parallax-bg-layer,.parallax-mid-layer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none!important;z-index:0}
 .parallax-bg-layer{background:radial-gradient(ellipse at 50% 30%,rgba(30,20,60,0.5) 0%,transparent 60%),radial-gradient(ellipse at 80% 70%,rgba(60,30,50,0.3) 0%,transparent 50%)}
 .parallax-mid-layer{background:radial-gradient(ellipse at 20% 50%,rgba(40,30,70,0.4) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(50,25,40,0.25) 0%,transparent 45%)}
@@ -79,18 +83,28 @@ body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue'
 .planet-wrapper{display:flex;flex-direction:column;align-items:center;gap:1.5rem;z-index:2;will-change:transform}
 .planet{width:120px;height:120px;border-radius:50%;position:relative;box-shadow:0 0 60px rgba(212,175,135,.35),0 0 120px rgba(180,150,210,.2),inset 0 -10px 30px rgba(0,0,0,.4);animation:breathe 4s ease-in-out infinite}
 .planet canvas,.planet-surface{border-radius:50%;overflow:hidden}
-/* Awwwards 头像 —— 灰阶→彩色、流体缩放、柔和径向辉光 */
+/* Awwwards 头像 —— 全彩 + RGB 色差 + 流体缩放 + 辉光 */
 .avatar-img{
     position:absolute;inset:50% auto auto 50%;transform:translate3d(-50%,-50%,0);
     width:72%;height:72%;object-fit:cover;border-radius:50%;
-    filter:grayscale(85%) brightness(.92) contrast(1.05);
     transition:filter .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1),box-shadow .7s cubic-bezier(.16,1,.3,1);
     z-index:3;pointer-events:none;will-change:transform,filter;
 }
-.avatar-planet:hover .avatar-img,.planet-wrapper:hover .avatar-img{
-    filter:grayscale(0%) brightness(1.02) contrast(1.02);
-    transform:translate3d(-50%,-50%,0) scale(1.08);
-    box-shadow:0 0 30px rgba(212,175,135,.45),0 0 80px rgba(212,175,135,.2);
+/* RGB 色差叠加层：红偏移 + 青偏移，悬停时显现 */
+.avatar-planet::before,.avatar-planet .chromatic-split{
+    content:'';position:absolute;inset:0;border-radius:50%;z-index:2;pointer-events:none;
+    opacity:0;transition:opacity .45s ease;
+    background:
+        radial-gradient(circle at 30% 30%,rgba(255,0,80,.35) 0%,transparent 42%),
+        radial-gradient(circle at 70% 70%,rgba(0,240,255,.35) 0%,transparent 42%);
+    mix-blend-mode:screen;
+}
+.avatar-planet:hover .chromatic-split,.avatar-planet:hover::before{opacity:.85}
+/* 全彩 + 色差微动 */
+.avatar-planet:hover .avatar-img{
+    filter:brightness(1.06) contrast(1.04) saturate(1.15);
+    transform:translate3d(-50%,-50%,0) scale(1.09);
+    box-shadow:0 0 36px rgba(255,70,160,.5),0 0 90px rgba(0,220,255,.28),-6px 0 20px rgba(255,0,80,.3),6px 0 20px rgba(0,240,255,.3);
 }
 .avatar-planet::after{
     content:'';position:absolute;inset:0;border-radius:50%;z-index:4;pointer-events:none;
@@ -108,7 +122,12 @@ body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue'
 .hero-sub{font-family:'Inter',sans-serif;font-size:.75rem;letter-spacing:.4em;color:rgba(212,175,135,.7);margin-bottom:1.5rem}
 .hero-title{font-family:'Playfair Display','Noto Serif SC',serif;display:flex;flex-direction:column;gap:.5rem;margin-bottom:2rem}
 .title-line{font-size:2.8rem;font-weight:500;letter-spacing:.1em;background:linear-gradient(135deg,#d4af87,#f5e6d0,#b496c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.title-name{font-size:4.5rem;font-weight:700;letter-spacing:.15em;background:linear-gradient(135deg,#d4af87 20%,#f0dbb0 50%,#c9a9d9 80%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 40px rgba(212,175,135,.25)}
+.title-name{font-size:4.5rem;font-weight:700;letter-spacing:.15em;
+    background:linear-gradient(120deg,#8a2be2 0%,#ff2d78 25%,#f0dbb0 50%,#00e5ff 75%,#8a2be2 100%);
+    background-size:250% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    animation:iridescentShimmer 8s ease-in-out infinite;
+    filter:drop-shadow(0 0 26px rgba(255,45,120,.3))}
+@keyframes iridescentShimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .hero-desc{font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif;font-size:1.1rem;line-height:1.8;color:rgba(200,190,220,.8);max-width:500px;margin:0 auto 3rem}
 .scroll-hint{display:flex;flex-direction:column;align-items:center;gap:.5rem;opacity:.5;animation:floatHint 2s ease-in-out infinite}
 .scroll-arrow{width:1px;height:30px;background:linear-gradient(to bottom,transparent,#d4af87);position:relative}
@@ -124,7 +143,11 @@ body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue'
 .section-divider{display:flex;align-items:center;justify-content:center;gap:1rem;margin-bottom:2.5rem}
 .divider-line{width:60px;height:1px;background:linear-gradient(90deg,transparent,rgba(212,175,135,.4),transparent)}
 .divider-icon{color:rgba(212,175,135,.5);font-size:.8rem}
-.section-heading{font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:600;text-align:center;background:linear-gradient(135deg,#d4af87,#e8d5c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem}
+.section-heading{font-family:'Playfair Display',serif;font-size:2.5rem;font-weight:600;text-align:center;
+    background:linear-gradient(120deg,#8a2be2,#ff2d78 25%,#00e5ff 50%,#ff2d78 75%,#8a2be2);
+    background-size:250% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    animation:iridescentShimmer 7s ease-in-out infinite;
+    margin-bottom:.5rem;filter:drop-shadow(0 0 18px rgba(255,45,120,.25))}
 .section-sub{text-align:center;font-size:.85rem;color:rgba(180,150,200,.7);margin-bottom:3rem;letter-spacing:.1em;font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif}
 
 /* Chrono */
@@ -135,7 +158,15 @@ body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue'
 @keyframes rotateGears{from{transform:translate3d(-50%,0,0) rotate(0deg)}to{transform:translate3d(-50%,0,0) rotate(360deg)}}
 .chrono-display{display:flex;align-items:center;justify-content:center;gap:.8rem;z-index:2;margin:2rem 0;background:rgba(15,15,30,.4);border:.5px solid rgba(212,175,135,.2);border-radius:20px;padding:1.5rem 2rem}
 .chrono-card{display:flex;flex-direction:column;align-items:center;min-width:70px}
-.chrono-value{font-family:'Playfair Display',serif;font-size:2.8rem;font-weight:700;background:linear-gradient(135deg,#d4af87,#f0dbb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.chrono-value{font-family:'Playfair Display',serif;font-size:2.8rem;font-weight:700;background:linear-gradient(135deg,#d4af87,#f0dbb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;display:inline-block;overflow:hidden}
+/* 老虎机数字滚动 */
+.chrono-roll{position:relative;display:inline-block;overflow:hidden;line-height:1}
+.chrono-roll span{position:absolute;left:0;top:0;width:100%;display:block;white-space:nowrap;
+    background:linear-gradient(135deg,#d4af87,#f0dbb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.chrono-roll-out{animation:chronoOut .5s cubic-bezier(.4,0,.2,1) forwards}
+.chrono-roll-in{animation:chronoIn .5s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes chronoOut{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}
+@keyframes chronoIn{0%{transform:translateY(100%);opacity:0}100%{transform:translateY(0);opacity:1}}
 .chrono-unit{font-size:.6rem;letter-spacing:.2em;color:rgba(180,150,200,.7);margin-top:.3rem}
 .chrono-sep{font-size:2.5rem;color:rgba(212,175,135,.4);margin-top:-.8rem}
 .chrono-detail{display:flex;gap:.6rem;font-size:.8rem;color:rgba(200,180,220,.7);letter-spacing:.1em;z-index:2;margin-bottom:1rem}
@@ -217,24 +248,33 @@ body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue'
     z-index:1;
 }
 
-/* 单张照片 —— 玻璃态 + 磁性吸附 + 弹出 */
+/* 单张照片 —— 全彩 + 玻璃态 + 磁性吸附 + RGB 色差 */
 .constellation-item{
     position:absolute;width:clamp(150px,18vw,260px);border-radius:16px;overflow:hidden;
-    border:.5px solid rgba(212,175,135,.16);
-    filter:grayscale(80%) blur(2px);opacity:.6;cursor:pointer;
+    border:.5px solid rgba(255,255,255,.14);
+    opacity:.85;cursor:pointer;
     transform:translate3d(0,0,0);
-    transition:filter .6s cubic-bezier(.16,1,.3,1),opacity .6s cubic-bezier(.16,1,.3,1),
-               clip-path .6s cubic-bezier(.16,1,.3,1),box-shadow .6s cubic-bezier(.16,1,.3,1);
+    transition:opacity .6s cubic-bezier(.16,1,.3,1),clip-path .6s cubic-bezier(.16,1,.3,1),
+               box-shadow .6s cubic-bezier(.16,1,.3,1),filter .6s cubic-bezier(.16,1,.3,1);
     will-change:transform;z-index:1;background:rgba(20,20,40,.4);
     box-shadow:0 8px 30px rgba(0,0,0,.45);
 }
-.constellation-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.16,1,.3,1)}
+.constellation-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.16,1,.3,1);filter:saturate(1.1)}
 .constellation-item:hover{
-    filter:grayscale(0%) blur(0);opacity:1;z-index:10;
+    opacity:1;z-index:10;
     clip-path:inset(0 0 0 0 round 16px);
-    box-shadow:0 24px 70px rgba(138,43,226,.35),0 0 50px rgba(212,175,135,.25);
+    box-shadow:0 24px 70px rgba(255,60,170,.4),0 0 50px rgba(0,220,255,.3),-8px 0 24px rgba(255,0,80,.25),8px 0 24px rgba(0,240,255,.25);
 }
-.constellation-item:hover img{transform:scale(1.06)}
+.constellation-item:hover img{transform:scale(1.06);filter:saturate(1.25) brightness(1.05)}
+/* RGB 色差伪元素叠加 */
+.constellation-item::before{
+    content:'';position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:16px;
+    background:
+        radial-gradient(circle at 28% 30%,rgba(255,0,80,.28) 0%,transparent 40%),
+        radial-gradient(circle at 72% 68%,rgba(0,240,255,.28) 0%,transparent 40%);
+    mix-blend-mode:screen;opacity:0;transition:opacity .5s ease;
+}
+.constellation-item:hover::before{opacity:.75}
 .constellation-item .const-frame{
     position:absolute;bottom:10px;left:10px;font-family:'Space Mono',monospace;
     font-size:.55rem;color:rgba(212,175,135,.7);letter-spacing:.15em;z-index:3;
@@ -308,6 +348,26 @@ body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue'
 }
 .bgm-toast.show{opacity:1;transform:translate3d(-50%,0,0) scale(1)}
 .bgm-toast.hide{opacity:0;transform:translate3d(-50%,10px,0) scale(.96)}
+
+/* 自定义混合模式光标 —— 发光空心圆 */
+.custom-cursor{
+    position:fixed;top:0;left:0;z-index:9999;pointer-events:none!important;
+    width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
+    mix-blend-mode:difference;will-change:transform;
+    transition:width .35s cubic-bezier(.16,1,.3,1),height .35s cubic-bezier(.16,1,.3,1),
+               margin .35s cubic-bezier(.16,1,.3,1),background .35s ease,border-color .35s ease;
+}
+.custom-cursor span{
+    position:absolute;inset:0;border-radius:50%;
+    border:1.5px solid rgba(255,255,255,.92);
+    box-shadow:0 0 12px rgba(255,255,255,.5),inset 0 0 8px rgba(255,255,255,.25);
+    transition:transform .35s cubic-bezier(.16,1,.3,1);
+}
+/* 悬停可吸附元素：放大 + 中心实体 */
+.custom-cursor.magnetic{width:62px;height:62px;margin:-31px 0 0 -31px;background:rgba(255,255,255,.12);border-color:transparent}
+.custom-cursor.magnetic span{border-color:rgba(255,255,255,.7);transform:scale(.55)}
+/* 点击时收缩 */
+.custom-cursor.down span{transform:scale(.72)}
 
 /* Footer */
 .footer{text-align:center;padding:3rem;color:rgba(180,150,200,.4);font-size:.8rem;letter-spacing:.2em}

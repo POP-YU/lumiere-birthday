@@ -19,6 +19,7 @@
 <body>
     <div class="grain-overlay"></div>
     <canvas id="starfield-canvas"></canvas>
+    <canvas id="webgl-shader-bg" class="webgl-shader-bg"></canvas>
 
     <!-- 视差层 -->
     <div class="parallax-bg-layer" id="parallax-bg"></div>
@@ -76,6 +77,9 @@
         <span class="music-tooltip" id="music-tooltip">COSMIC WAVES</span>
         <audio id="bgm-audio" loop preload="none" src="music/music.mp3"></audio>
     </div>
+
+    <!-- 自定义混合模式光标 -->
+    <div class="custom-cursor" id="custom-cursor"><span></span></div>
 
     <!-- 主内容 -->
     <main id="main-content" class="main-content hidden">
