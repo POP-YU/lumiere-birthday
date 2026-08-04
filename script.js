@@ -12,123 +12,66 @@
     //   ServerChan https://sctapi.ftqq.com/<SENDKEY>.send  (payload 字段为 title + desp)
     var WEBHOOK_URL = 'https://enoa6f6r4m58l.x.pipedream.net/'; // 测试用 RequestBin，之后可替换为正式通道
 
-    // ============ 星尘粒子引擎 (Interactive Stardust Physics) ============
-    // 500-800 发光粒子 · 香槟金/粉/白三色 · 鼠标涡旋斥力 · 光尾拖影
-    // 童话宇宙：流体星云丝 + 赤道光河 + 生命之心
+    // ============ 星尘粒子引擎 (Optimized for Mobile 60fps) ============
+    // 移动端优先：粒子数严格限制、clearRect 清屏、标准 alpha 混合
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
     var particles = [], mouse = { x: -1000, y: -1000 }, animationId;
     var isMobile = window.innerWidth < 768;
-    var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
-    var nebulaBlobs = [];       // 流体星云丝
+    var DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
     var time = 0;
 
-    // 三色调色板：香槟金 / 柔粉 / 星光白
+    // 三色调色板：香槟金 / 柔粉 / 星光白（柔和低透明度，避免刺眼）
     var STARDUST_COLORS = [
         { r: 249, g: 229, b: 201 },  // #F9E5C9 Champagne Gold
         { r: 255, g: 209, b: 220 },  // #FFD1DC Soft Pastel Pink
         { r: 255, g: 248, b: 240 }   // Starlight White
     ];
-    // 星云丝调色板：柔薰衣草 / 淡蜜桃
-    var NEBULA_COLORS = [
-        'rgba(186, 180, 220, ',   // Soft Lavender
-        'rgba(255, 214, 190, ',   // Pale Peach
-        'rgba(255, 209, 220, '    // Soft Pink
-    ];
 
     function resizeCanvas() {
-        DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+        DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
         canvas.width = Math.round(window.innerWidth * DPR);
         canvas.height = Math.round(window.innerHeight * DPR);
         ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
         initParticles();
-        initNebula();
-    }
-
-    // 流体星云丝：缓慢移动的柔光团
-    function initNebula() {
-        nebulaBlobs = [];
-        var count = isMobile ? 3 : 4;
-        for (var i = 0; i < count; i++) {
-            nebulaBlobs.push({
-                x: Math.random() * window.innerWidth,
-                y: Math.random() * window.innerHeight,
-                r: (Math.random() * 220 + 160) * (isMobile ? 0.7 : 1),
-                color: NEBULA_COLORS[i % NEBULA_COLORS.length],
-                baseOpacity: Math.random() * 0.16 + 0.08,
-                phase: Math.random() * Math.PI * 2,
-                speedX: Math.random() * 0.06 + 0.02,
-                speedY: Math.random() * 0.06 + 0.02,
-                pulseSpeed: Math.random() * 0.004 + 0.002
-            });
-        }
     }
 
     function initParticles() {
         var w = window.innerWidth, h = window.innerHeight;
         var area = w * h;
-        // 桌面 ~700，移动端降一半保 60fps
-        var density = isMobile ? 0.00009 : 0.00042;
+        // 严格数量上限：移动端 80-120，桌面 ~250
+        var density = isMobile ? 0.000045 : 0.00015;
         var count = Math.floor(area * density);
-        count = Math.min(count, isMobile ? 320 : 700);
-        count = Math.max(count, isMobile ? 120 : 320);
+        count = Math.min(count, isMobile ? 120 : 250);
+        count = Math.max(count, isMobile ? 80 : 150);
         particles = [];
         for (var i = 0; i < count; i++) {
             var ci = Math.floor(Math.random() * STARDUST_COLORS.length);
             var col = STARDUST_COLORS[ci];
-            // 约 60% 粒子进入赤道光河，其余自由漂流
-            var inRing = Math.random() < 0.6;
+            // 约 55% 粒子进入赤道光河
+            var inRing = Math.random() < 0.55;
+            // 尺寸差异大：少数大星 + 多数小星，视觉丰富
+            var big = Math.random() < 0.15;
             particles.push({
                 x: Math.random() * w,
                 y: Math.random() * h,
-                vx: (Math.random() - 0.5) * 0.22,
-                vy: (Math.random() - 0.5) * 0.22,
-                size: Math.random() * 2.4 + 0.6,
+                vx: (Math.random() - 0.5) * 0.2,
+                vy: (Math.random() - 0.5) * 0.2,
+                size: big ? (Math.random() * 2 + 2.4) : (Math.random() * 1.4 + 0.5),
                 baseSize: 0,
                 color: 'rgba(' + col.r + ',' + col.g + ',' + col.b + ',',
-                opacity: Math.random() * 0.75 + 0.45,
+                // 低透明度柔和（0.25-0.55），不刺眼
+                opacity: Math.random() * 0.3 + 0.25,
                 twinklePhase: Math.random() * Math.PI * 2,
-                twinkleSpeed: Math.random() * 0.02 + 0.006,
+                twinkleSpeed: Math.random() * 0.018 + 0.005,
                 driftX: Math.random() * 360,
                 driftY: Math.random() * 360,
-                driftSpeed: Math.random() * 0.12 + 0.04,
                 inRing: inRing,
-                // 光河参数：绕屏幕中心赤道流动
                 ringAngle: Math.random() * Math.PI * 2,
                 ringRadius: w * (0.22 + Math.random() * 0.18),
-                ringSpeed: (Math.random() * 0.6 + 0.3) * (Math.random() < 0.5 ? 1 : -1)
+                ringSpeed: (Math.random() * 0.5 + 0.25) * (Math.random() < 0.5 ? 1 : -1)
             });
             particles[i].baseSize = particles[i].size;
-        }
-    }
-
-    function drawNebula() {
-        // 星云丝：柔光团缓慢流动，sine 控制位置与透明度
-        for (var i = 0; i < nebulaBlobs.length; i++) {
-            var nb = nebulaBlobs[i];
-            nb.phase += nb.pulseSpeed;
-            nb.x += nb.speedX;
-            nb.y += nb.speedY;
-            var w = window.innerWidth, h = window.innerHeight;
-            // 环绕边界
-            if (nb.x > w + 300) nb.x = -300; if (nb.x < -300) nb.x = w + 300;
-            if (nb.y > h + 300) nb.y = -300; if (nb.y < -300) nb.y = h + 300;
-
-            var wobX = Math.sin(nb.phase) * 30;
-            var wobY = Math.cos(nb.phase * 0.8) * 24;
-            var pulse = 0.75 + 0.25 * Math.sin(nb.phase * 1.3);
-            var alpha = nb.baseOpacity * pulse;
-
-            ctx.globalCompositeOperation = 'lighter';
-            var g = ctx.createRadialGradient(nb.x + wobX, nb.y + wobY, 0, nb.x + wobX, nb.y + wobY, nb.r);
-            g.addColorStop(0, nb.color + alpha + ')');
-            g.addColorStop(0.55, nb.color + (alpha * 0.45) + ')');
-            g.addColorStop(1, nb.color + '0)');
-            ctx.fillStyle = g;
-            ctx.beginPath();
-            ctx.arc(nb.x + wobX, nb.y + wobY, nb.r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalCompositeOperation = 'source-over';
         }
     }
 
@@ -136,94 +79,161 @@
         var w = window.innerWidth, h = window.innerHeight;
         time += 0.016;
 
-        // 光尾拖影技巧：半透明填充代替 clearRect，营造流动光轨
-        ctx.fillStyle = 'rgba(7, 7, 15, 0.14)';
-        ctx.fillRect(0, 0, w, h);
+        // 移动端用 clearRect（避免拖尾的全屏合成）；桌面保留短拖尾营造光轨
+        if (isMobile) {
+            ctx.clearRect(0, 0, w, h);
+        } else {
+            ctx.fillStyle = 'rgba(7, 7, 15, 0.12)';
+            ctx.fillRect(0, 0, w, h);
+        }
 
-        // 1. 流体星云丝（在粒子之下）
-        drawNebula();
-
-        // 2. 赤道光河中心（发光核心）
         var cx0 = w / 2, cy0 = h / 2;
-
-        // 3. 粒子
         var mx = mouse.x, my = mouse.y;
+        // 声画共鸣：高音推快星尘漂移速度（音乐高潮 → 星河奔涌）
+        var driftBoost = 1 + audioTreble * 2.5 + audioPulse * 3;
+        // 标准 alpha 混合（无 'lighter'，省 GPU + 不刺眼）
         for (var i = 0; i < particles.length; i++) {
             var p = particles[i];
 
-            // 鼠标涡旋斥力：附近粒子被推开
+            // 鼠标涡旋斥力（保留交互）
             var dx = p.x - mx, dy = p.y - my;
             var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 160 && dist > 0.5) {
-                var force = (1 - dist / 160) * 0.9;
-                var fx = dx / dist * force * 1.6;
-                var fy = dy / dist * force * 1.6;
-                var swirl = force * 1.1;
-                p.vx += (fx - dy / dist * swirl) * 0.18;
-                p.vy += (fy + dx / dist * swirl) * 0.18;
+            if (dist < 150 && dist > 0.5) {
+                var force = (1 - dist / 150) * 0.8;
+                var fx = dx / dist * force * 1.5;
+                var fy = dy / dist * force * 1.5;
+                var swirl = force * 1.0;
+                p.vx += (fx - dy / dist * swirl) * 0.16;
+                p.vy += (fy + dx / dist * swirl) * 0.16;
             }
 
             if (p.inRing) {
-                // 赤道光河：绕屏幕中心画圆流动（像土星光环 / 发光的河）
-                p.ringAngle += p.ringSpeed * 0.016;
-                var ringCX = cx0 + Math.sin(time * 0.5 + p.twinklePhase) * 20;
-                var ringCY = cy0 + Math.cos(time * 0.4 + p.twinklePhase) * 14;
+                p.ringAngle += p.ringSpeed * 0.016 * driftBoost;
+                var ringCX = cx0 + Math.sin(time * 0.5 + p.twinklePhase) * 18;
+                var ringCY = cy0 + Math.cos(time * 0.4 + p.twinklePhase) * 12;
                 var tx = ringCX + Math.cos(p.ringAngle) * p.ringRadius;
                 var ty = ringCY + Math.sin(p.ringAngle) * p.ringRadius * 0.55;
-                // 弹性吸附到轨道
                 p.x += (tx - p.x) * 0.02;
                 p.y += (ty - p.y) * 0.02;
-                // 轨道上的切向流动（保持运动）
-                p.x += Math.cos(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.35;
-                p.y += Math.sin(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.35 * 0.55;
+                p.x += Math.cos(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.3 * driftBoost;
+                p.y += Math.sin(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.3 * 0.55 * driftBoost;
             } else {
-                // 自由漂流粒子
                 p.vx *= 0.98;
                 p.vy *= 0.98;
-                p.vx += Math.sin((p.driftX + p.twinklePhase) * 0.01) * 0.006;
-                p.vy += Math.cos((p.driftY + p.twinklePhase) * 0.01) * 0.006;
+                p.vx += Math.sin((p.driftX + p.twinklePhase) * 0.01) * 0.005 * driftBoost;
+                p.vy += Math.cos((p.driftY + p.twinklePhase) * 0.01) * 0.005 * driftBoost;
                 p.x += p.vx;
                 p.y += p.vy;
             }
 
-            // 环绕边界（无缝循环）
             if (p.x < -20) p.x = w + 20; if (p.x > w + 20) p.x = -20;
             if (p.y < -20) p.y = h + 20; if (p.y > h + 20) p.y = -20;
 
-            // 闪烁
             p.twinklePhase += p.twinkleSpeed;
             var alpha = p.opacity * (0.6 + 0.4 * Math.sin(p.twinklePhase));
-            if (alpha < 0.05) alpha = 0.05;
+            if (alpha < 0.04) alpha = 0.04;
+            p.size = p.baseSize * (1 + 0.3 * Math.sin(p.twinklePhase * 0.7));
 
-            // 呼吸放大
-            p.size = p.baseSize * (1 + 0.4 * Math.sin(p.twinklePhase * 0.7));
-
-            // 发光绘制（lighter 叠加）
-            ctx.globalCompositeOperation = 'lighter';
+            // 标准 alpha 混合绘制
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fillStyle = p.color + alpha + ')';
             ctx.fill();
 
-            // 光晕（大粒子）
-            if (p.size > 1.5) {
+            // 大粒子柔和光晕
+            if (p.size > 2.2) {
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size * 2.8, 0, Math.PI * 2);
-                ctx.fillStyle = p.color + (alpha * 0.14) + ')';
+                ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
+                ctx.fillStyle = p.color + (alpha * 0.1) + ')';
                 ctx.fill();
             }
-            ctx.globalCompositeOperation = 'source-over';
         }
         animationId = requestAnimationFrame(drawStars);
     }
     window.addEventListener('resize', function() {
         isMobile = window.innerWidth < 768;
+        DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
         resizeCanvas();
     });
     window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
     window.addEventListener('touchmove', function(e) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: true });
     resizeCanvas();
     drawStars();
+
+    // ═══════ 三大沉浸系统：陀螺仪视窗 / 声画共鸣 / 丁达尔光 ═══════
+
+    // ① 陀螺仪物理视窗：手机倾斜 → 相机视差偏移（微观调整）
+    var gyro = { beta: 0, gamma: 0, targetBX: 0, targetBY: 0, bx: 0, by: 0, active: false };
+    function initGyro() {
+        // 仅在支持 DeviceOrientation 的设备上启用
+        if (!('DeviceOrientationEvent' in window)) return;
+        // iOS 13+ 需要用户授权
+        var requestPermission = (typeof DeviceOrientationEvent !== 'undefined') && DeviceOrientationEvent.requestPermission;
+        function enable() {
+            window.addEventListener('deviceorientation', function(e) {
+                if (e.beta === null || e.gamma === null) return;
+                // beta: 前后倾斜 (-180~180), gamma: 左右倾斜 (-90~90)
+                // 归一化为视差偏移：±20px 微调相机
+                gyro.targetBX = (e.gamma || 0) / 45;   // 左右 → 相机 X
+                gyro.targetBY = (e.beta || 0) / 45;    // 前后 → 相机 Y
+                gyro.targetBX = Math.max(-1, Math.min(1, gyro.targetBX));
+                gyro.targetBY = Math.max(-1, Math.min(1, gyro.targetBY));
+                gyro.active = true;
+            });
+        }
+        if (requestPermission) {
+            // iOS：需要用户手势触发授权（放在 gate 点击后调用）
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('gate-btn').addEventListener('click', function() {
+                    try { DeviceOrientationEvent.requestPermission().then(function(state) { if (state === 'granted') enable(); }).catch(function(){}); } catch(e) {}
+                }, { once: false });
+            });
+        } else {
+            enable();
+        }
+    }
+    initGyro();
+
+    // ② 声画共鸣：每帧提取频率，低音 → 心跳脉冲，高音 → 粒子速度
+    function audioReactiveTick() {
+        if (musicAnalyser && musicFreqData) {
+            try {
+                musicAnalyser.getByteFrequencyData(musicFreqData);
+                musicAnalyser.getByteTimeDomainData(musicTimeData);
+                var n = musicFreqData.length;
+                // 低频 (Bass): 前 1/8 bins
+                var bassSum = 0, bassN = Math.max(1, Math.floor(n / 8));
+                for (var i = 0; i < bassN; i++) bassSum += musicFreqData[i];
+                var bassAvg = bassSum / bassN / 255;
+                // 高频 (Treble): 后 1/3 bins
+                var trebSum = 0, trebN = Math.max(1, Math.floor(n / 3));
+                for (var j = n - trebN; j < n; j++) trebSum += musicFreqData[j];
+                var trebAvg = trebSum / trebN / 255;
+                // 低音平滑（鼓点感知），并检测瞬时脉冲
+                audioBass += (bassAvg - audioBass) * 0.4;
+                audioTreble += (trebAvg - audioTreble) * 0.3;
+                var peak = Math.max(0, bassAvg - audioBass);  // 鼓点瞬时超过平滑基线
+                audioPulse += (peak * 4 - audioPulse) * 0.5;
+                if (audioPulse < 0.02) audioPulse = 0;
+            } catch(e) { audioBass = 0; audioTreble = 0; audioPulse = 0; }
+        } else {
+            // 无声 → 缓慢归零
+            audioBass *= 0.92; audioTreble *= 0.92; audioPulse *= 0.9;
+        }
+        requestAnimationFrame(audioReactiveTick);
+    }
+    requestAnimationFrame(audioReactiveTick);
+
+    // ③ 丁达尔神之光：中心光源向外辐射体积光，随水晶位置被切割
+    // 由 orbitLoop 每帧更新 CSS 变量 --god-ray-angle 等驱动
+    function updateGodRays() {
+        var center = document.querySelector('.orbit-center');
+        if (!center) return;
+        var angle = 0;
+        // 取最近一颗水晶的角度作为遮挡方向（角度由 orbit 提供）
+        if (window.__orbitNearestAngle !== undefined) angle = window.__orbitNearestAngle;
+        center.style.setProperty('--ray-angle', angle.toFixed(2) + 'deg');
+    }
 
     // ============ 加载器 ============
     var loader = document.getElementById('preamble-loader');
@@ -319,6 +329,12 @@
     var musicMasterGain = null;
     var musicReverb = null;
     var musicDryGain = null;
+    var musicAnalyser = null;      // 频谱分析器（声画共鸣）
+    var musicFreqData = null;
+    var musicTimeData = null;
+    var audioBass = 0;             // 低频能量 0-1（鼓点）
+    var audioTreble = 0;           // 高频能量 0-1（细节）
+    var audioPulse = 0;            // 瞬时脉冲（爆闪）
     var musicActiveOscillators = [];
     var musicTimers = [];
     var musicStarted = false;
@@ -376,6 +392,15 @@
         musicDryGain.gain.value = 0.55;
         musicMasterGain.connect(musicDryGain);
         musicDryGain.connect(musicCtx.destination);
+
+        // ═══ 声画共鸣：AnalyserNode 提取实时频率 ═══
+        // 从主音量分出一路做频谱分析（不改变声音本身）
+        musicAnalyser = musicCtx.createAnalyser();
+        musicAnalyser.fftSize = 256;
+        musicAnalyser.smoothingTimeConstant = 0.75;
+        musicMasterGain.connect(musicAnalyser);
+        musicFreqData = new Uint8Array(musicAnalyser.frequencyBinCount);
+        musicTimeData = new Uint8Array(musicAnalyser.frequencyBinCount);
 
         return musicCtx;
     }
@@ -1118,6 +1143,8 @@
         rotX: 0, rotY: 0, rotZ: 0,
         targetRotX: 0, targetRotY: 0, targetRotZ: 0,
         velX: 0, velY: 0, velZ: 0,
+        // 离心相机缩放：拖拽速度快 → 缩小 (zoom out)，减速 → 回弹 scale(1)
+        camScale: 1, camTargetScale: 1,
         // 空闲自动翻滚速度（三轴各自独立，营造失重翻滚）
         autoSpeedX: 0.0011, autoSpeedY: 0.0018, autoSpeedZ: 0.0005,
         dragging: false, lastX: 0, lastY: 0,
@@ -1198,7 +1225,7 @@
             // 中心光源：花花头像
             var centerWrap = document.createElement('div');
             centerWrap.className = 'orbit-center';
-            centerWrap.innerHTML = '<img src="images/huahua.jpg" class="orbit-center-avatar" alt="花花">';
+            centerWrap.innerHTML = '<img src="images/huahua.jpg" class="orbit-center-avatar" alt="花花"><div class="god-rays"></div>';
             grid.appendChild(centerWrap);
             orbit.center = centerWrap;
 
@@ -1237,8 +1264,18 @@
             orbit.targetRotX += dy * 0.006;
             orbit.velY = dx * 0.006;
             orbit.velX = dy * 0.006;
+            // 离心相机缩放：拖拽速度越快 → 越缩小 (zoom out 看全貌)
+            var speed = Math.sqrt(dx * dx + dy * dy);
+            var targetScale = 1 - Math.min(speed / 220, 1) * 0.18;   // 最高缩到 0.82
+            orbit.camTargetScale = Math.min(orbit.camTargetScale, targetScale);
         }
-        function end() { if (!orbit.dragging) return; orbit.dragging = false; vp.classList.remove('dragging'); }
+        function end() {
+            if (!orbit.dragging) return;
+            orbit.dragging = false;
+            vp.classList.remove('dragging');
+            // 释放后回弹到 scale(1)
+            orbit.camTargetScale = 1;
+        }
 
         vp.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX, e.clientY); });
         window.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
@@ -1271,23 +1308,38 @@
 
     function orbitLoop() {
         // 空闲三维翻滚（三轴各自缓慢，失重 tumbling）
+        // Apple 式平滑：摩擦 0.94 温和减速，阈值低 → 优雅停驻
+        // 声画共鸣：高频推高翻滚速度，低频推高 Z 轴微动（音乐高潮 → 星系加速）
+        var audioBoost = 1 + audioTreble * 2.2 + audioPulse * 3;
+        var bassNudge = audioBass * 0.35;
+
         if (!orbit.dragging) {
-            orbit.velX *= 0.95; if (Math.abs(orbit.velX) < 0.0006) orbit.velX = 0;
-            orbit.velY *= 0.95; if (Math.abs(orbit.velY) < 0.0006) orbit.velY = 0;
-            orbit.velZ *= 0.95; if (Math.abs(orbit.velZ) < 0.0005) orbit.velZ = 0;
-            orbit.targetRotX += orbit.autoSpeedX + orbit.velX;
-            orbit.targetRotY += orbit.autoSpeedY + orbit.velY;
-            orbit.targetRotZ += orbit.autoSpeedZ + orbit.velZ;
+            orbit.velX *= 0.94; if (Math.abs(orbit.velX) < 0.00045) orbit.velX = 0;
+            orbit.velY *= 0.94; if (Math.abs(orbit.velY) < 0.00045) orbit.velY = 0;
+            orbit.velZ *= 0.94; if (Math.abs(orbit.velZ) < 0.0004) orbit.velZ = 0;
+            // 音乐驱动：翻滚速度 = 基础 + 音频加成（高潮加速）
+            orbit.targetRotX += orbit.autoSpeedX * audioBoost + orbit.velX;
+            orbit.targetRotY += orbit.autoSpeedY * audioBoost + orbit.velY;
+            orbit.targetRotZ += (orbit.autoSpeedZ + bassNudge * 0.002) * audioBoost + orbit.velZ;
         }
         // Lerp 平滑收敛
         orbit.rotX += (orbit.targetRotX - orbit.rotX) * 0.12;
         orbit.rotY += (orbit.targetRotY - orbit.rotY) * 0.12;
         orbit.rotZ += (orbit.targetRotZ - orbit.rotZ) * 0.12;
 
+        // 陀螺仪视窗：手机倾斜 → 相机 X/Y 偏移（lerp 平滑）
+        gyro.bx += (gyro.targetBX - gyro.bx) * 0.08;
+        gyro.by += (gyro.targetBY - gyro.by) * 0.08;
+        var gyroOffX = gyro.bx * 60;   // ±60px 视差
+        var gyroOffY = gyro.by * 40;
+
         var cx = orbit.viewport.clientWidth / 2;
         var cy = orbit.viewport.clientHeight / 2;
         var items = orbit.items;
         var R = orbit._R || 700;
+
+        // 追踪最近水晶角度 → 驱动丁达尔光遮挡
+        var nearestDepth = -9999, nearestAngle = 0;
 
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
@@ -1311,13 +1363,13 @@
             var scale = (0.45 + depth * 0.75) * persp;
             scale = Math.min(scale, 1.6);
 
-            // 屏幕投影
-            var screenX = cx + x * (0.6 + depth * 0.55);
-            var screenY = cy + y * (0.6 + depth * 0.55) - (1 - depth) * 40;
+            // 屏幕投影（含陀螺仪视差偏移）
+            var screenX = cx + x * (0.6 + depth * 0.55) + gyroOffX * (0.4 + depth * 0.6);
+            var screenY = cy + y * (0.6 + depth * 0.55) - (1 - depth) * 40 + gyroOffY * (0.4 + depth * 0.6);
 
-            // 光照：面向相机（z 大 = 面向）时更亮
+            // 光照：面向相机（z 大 = 面向）时更亮；音乐低频推亮（声画共鸣）
             var facing = (z / R + 1) / 2;
-            var glare = 0.15 + facing * 0.25;
+            var glare = 0.15 + facing * 0.25 + audioBass * 0.15;
 
             // 广告牌：counter-rotation 让照片始终面向相机（绕 Y 然后绕 X）
             // 基于点在相机空间的位置 (x, y, z)，旋转平面使其法线朝向 (0,0,1)
@@ -1330,12 +1382,33 @@
             it.style.opacity = opacity.toFixed(2);
             it.style.boxShadow = '0 0 ' + (glare * 140).toFixed(0) + 'px rgba(255,224,200,' + (glare * 0.5).toFixed(2) + '), inset 0 0 40px rgba(255,255,255,' + (glare * 0.35).toFixed(2) + ')';
             it._depth = depth;
+
+            // 追踪离相机最近的水晶 → 用于丁达尔光遮挡方向
+            if (z > nearestDepth) {
+                nearestDepth = z;
+                nearestAngle = billY;
+            }
         }
 
-        // 中心行星固定（光源头）
-        if (orbit.center) {
-            orbit.center.style.transform = 'translate3d(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(1)';
+        // 丁达尔神之光：把最近水晶角度暴露给 CSS 驱动射线
+        window.__orbitNearestAngle = nearestAngle;
+        var centerEl = document.querySelector('.orbit-center');
+        if (centerEl) {
+            centerEl.style.setProperty('--ray-angle', nearestAngle.toFixed(1) + 'deg');
+            centerEl.style.setProperty('--ray-power', (0.35 + audioBass * 0.65 + audioPulse * 0.5).toFixed(2));
         }
+
+        // 中心行星固定（光源头）+ 心跳随音乐脉冲
+        if (orbit.center) {
+            var heartScale = 1 + audioPulse * 0.35 + audioBass * 0.12;
+            orbit.center.style.transform = 'translate3d(' + (cx + gyroOffX).toFixed(1) + 'px,' + (cy + gyroOffY).toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + heartScale.toFixed(3) + ')';
+        }
+
+        // 离心相机缩放：Lerp 平滑趋近目标，释放后回弹 scale(1)
+        orbit.camScale += (orbit.camTargetScale - orbit.camScale) * 0.1;
+        if (Math.abs(orbit.camScale - orbit.camTargetScale) < 0.002) orbit.camScale = orbit.camTargetScale;
+        // 应用到 3D 舞台（zoom out 看全貌 / zoom in 沉浸）
+        orbit.stage.style.transform = 'scale(' + orbit.camScale.toFixed(3) + ')';
 
         orbit.raf = requestAnimationFrame(orbitLoop);
     }
