@@ -4,6 +4,14 @@
     var SINCE_DATE = new Date('2026-01-11T00:00:00');
     window.TOTAL_REAL_PHOTOS = 11;
 
+    // ═══ 心声发射 · Webhook 对接配置 ═══
+    // 在这里填入你的推送通道地址（PushPlus / ServerChan / Formspree 均可）。
+    // 留空时不会真正发送，只 console.log 并模拟成功，方便先预览效果。
+    // 示例：
+    //   PushPlus   https://www.pushplus.plus/send          (payload 需加 token 字段)
+    //   ServerChan https://sctapi.ftqq.com/<SENDKEY>.send  (payload 字段为 title + desp)
+    var WEBHOOK_URL = 'https://enoa6f6r4m58l.x.pipedream.net/'; // 测试用 RequestBin，之后可替换为正式通道
+
     // ============ 星空粒子系统 (超轻量优化) ============
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
@@ -1358,17 +1366,99 @@
         var authorInput = document.getElementById('echo-author');
         var messageInput = document.getElementById('echo-message');
         var countEl = document.getElementById('echo-count');
+        var btnText = null; // 发射按钮内的主文本节点
         messageInput.addEventListener('input', function() { countEl.textContent = messageInput.value.length; });
         closeBtn.addEventListener('click', function() { overlay.classList.remove('active'); });
         overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.classList.remove('active'); });
-        submitBtn.addEventListener('click', function() {
+
+        // 找到按钮的主文本 <span class="echo-btn-text">
+        var textSpan = submitBtn.querySelector('.echo-btn-text');
+
+        function setBtnText(t) { if (textSpan) textSpan.textContent = t; }
+        function setBtnBusy(busy) {
+            submitBtn.disabled = busy;
+            submitBtn.classList.toggle('busy', busy);
+        }
+
+        // 提交字段标准化：ServerChan 用 desp，PushPlus 用 content
+        function buildPayload(author, body) {
+            var isServerChan = /ftqq\.com|sct\.ftqq|sctapi/.test(WEBHOOK_URL);
+            var isPushPlus = /pushplus\.plus/.test(WEBHOOK_URL);
+            if (isServerChan) {
+                return { title: '✦ 来自 ' + author + ' 的心声', desp: body };
+            }
+            if (isPushPlus) {
+                return { token: '', title: '✦ 来自 ' + author + ' 的心声', content: body };
+            }
+            // 通用/自定义 webhook
+            return { title: '来自花花的心声', content: body };
+        }
+
+        submitBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (submitBtn.disabled) return;
             var author = authorInput.value.trim() || '匿名旅人';
             var body = messageInput.value.trim();
             if (!body) return;
-            overlay.classList.remove('active');
-            launchEchoParticle(submitBtn, function() { addEcho(author, body); });
-            authorInput.value = ''; messageInput.value = ''; countEl.textContent = '0';
+
+            // 发射中…
+            setBtnBusy(true);
+            setBtnText('发射中…');
+
+            function onSuccess() {
+                // 关闭弹窗 → 粒子动画 → 落地的发光胶囊
+                overlay.classList.remove('active');
+                launchEchoParticle(submitBtn, function() {
+                    addEcho(author, body);
+                    setBtnText('发射成功 ✨');
+                    setTimeout(function() {
+                        setBtnBusy(false);
+                        setBtnText('✦ 发射入轨 ✦');
+                    }, 2000);
+                });
+                authorInput.value = ''; messageInput.value = ''; countEl.textContent = '0';
+            }
+
+            function onFail() {
+                setBtnText('引力异常，发射失败');
+                setBtnBusy(false);
+                setTimeout(function() { setBtnText('✦ 发射入轨 ✦'); }, 2500);
+            }
+
+            // 未配置 webhook → 模拟成功（仅打印日志）
+            if (!WEBHOOK_URL) {
+                console.log('[STARLIGHT-ECHO] 未配置 WEBHOOK_URL，模拟发送成功。', buildPayload(author, body));
+                setTimeout(onSuccess, 400);
+                return;
+            }
+
+            var payload = buildPayload(author, body);
+            var initOpts = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                mode: 'cors'
+            };
+
+            // PushPlus 若未填 token 则提示补全；其他通道直接发
+            if (/pushplus\.plus/.test(WEBHOOK_URL) && !payload.token) {
+                onFail();
+                return;
+            }
+
+            fetch(WEBHOOK_URL, initOpts)
+                .then(function(res) {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.text().catch(function() { return ''; });
+                })
+                .then(function() { onSuccess(); })
+                .catch(function(err) {
+                    console.error('[STARLIGHT-ECHO] 发送失败:', err);
+                    onFail();
+                });
         });
+
         var track = document.getElementById('echoes-track');
         if (track) {
             track.addEventListener('mouseenter', function() { track.classList.add('paused'); });
