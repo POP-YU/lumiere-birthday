@@ -1,21 +1,28 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:auto;overscroll-behavior:none}
-body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Inter','Noto Serif SC',sans-serif;overflow-x:hidden;cursor:none;-webkit-font-smoothing:antialiased;position:relative}
-/* 交互元素强制隐藏默认光标，统一走自定义光标 */
-a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.music-btn,.gate-btn,.echo-beacon{cursor:none!important}
+body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Inter','Noto Serif SC',sans-serif;overflow-x:hidden;cursor:none;-webkit-font-smoothing:antialiased;position:relative}/* 交互元素强制隐藏默认光标，统一走自定义光标 */
+a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.music-btn,.gate-btn,.echo-card{cursor:none!important}
 .grain-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000}
 #starfield-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-100;pointer-events:none!important}
 .parallax-bg-layer,.parallax-mid-layer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none!important;z-index:-80}
 /* 星尘粒子引擎已接管背景氛围，视差层保持透明仅作滚动位移装饰 */
 
-/* CSS 星云丝 —— GPU 硬件加速的 blur + opacity，替代 canvas 巨型光团 */
-.nebula-div{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none!important;z-index:-50;will-change:transform,opacity;opacity:.5}
-.nebula-1{width:46vw;height:46vw;top:-12vh;left:-10vw;background:radial-gradient(circle,rgba(186,180,220,.8) 0%,transparent 70%);animation:nebulaFloat1 34s ease-in-out infinite}
-.nebula-2{width:40vw;height:40vw;bottom:-14vh;right:-10vw;background:radial-gradient(circle,rgba(255,214,190,.8) 0%,transparent 70%);animation:nebulaFloat2 42s ease-in-out infinite}
-.nebula-3{width:36vw;height:36vw;top:26vh;left:26vw;background:radial-gradient(circle,rgba(255,209,220,.75) 0%,transparent 70%);animation:nebulaFloat3 38s ease-in-out infinite}
-@keyframes nebulaFloat1{0%,100%{transform:translate3d(0,0,0);opacity:.42}50%{transform:translate3d(6vw,5vh,0);opacity:.62}}
-@keyframes nebulaFloat2{0%,100%{transform:translate3d(0,0,0);opacity:.38}50%{transform:translate3d(-6vw,-4vh,0);opacity:.56}}
-@keyframes nebulaFloat3{0%,100%{transform:translate3d(0,0,0);opacity:.35}50%{transform:translate3d(4vw,-6vh,0);opacity:.52}}
+/* 极光氛围层：柔和径向渐变，模拟梦境极光（纯 GPU 合成，零 JS） */
+.aurora-bg{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    pointer-events:none!important;z-index:-60;
+    background:
+        radial-gradient(ellipse 70% 55% at 18% 12%, rgba(186,180,220,.16) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 82% 20%, rgba(255,214,190,.14) 0%, transparent 70%),
+        radial-gradient(ellipse 65% 55% at 50% 88%, rgba(255,209,220,.12) 0%, transparent 70%),
+        radial-gradient(ellipse 45% 40% at 88% 78%, rgba(249,229,201,.10) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 45% at 8% 60%, rgba(180,150,210,.08) 0%, transparent 70%);
+    animation:auroraDrift 26s ease-in-out infinite;
+}
+@keyframes auroraDrift{
+    0%,100%{transform:translate3d(0,0,0) scale(1)}
+    50%{transform:translate3d(-1.5%,2%,0) scale(1.04)}
+}
 
 /* 静态星光层：box-shadow 生成微星，填补低粒子数氛围 */
 .static-stars{
@@ -229,36 +236,52 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
 .echo-btn-sub{display:block;font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.3em;color:rgba(180,150,210,.5);margin-top:.2rem;position:relative;z-index:1}
 .echoes-stream-container,.echoes-stream-track,.echoes-stream-track.paused,.echoes-stream-container:hover .echoes-stream-track{display:none}
 
-/* 空间 HUD：全息回响信标 */
-.echo-hud-container{position:relative;width:100%;height:340px;overflow:hidden;border-radius:40px 14px 40px 14px;
-    border-top:1px solid rgba(255,255,255,.4);border-left:1px solid rgba(255,255,255,.2);
-    border-bottom:1px solid rgba(255,255,255,.05);border-right:1px solid rgba(255,255,255,.05);
-    background:rgba(255,255,255,.02);-webkit-backdrop-filter:blur(12px) saturate(120%);backdrop-filter:blur(12px) saturate(120%);
-    box-shadow:0 30px 60px rgba(0,0,0,.12),inset 0 0 120px rgba(0,0,0,.4)}
-.echo-hud-stage{position:absolute;inset:0;perspective:1000px;cursor:grab;transform-style:preserve-3d}
-.echo-hud-stage.dragging{cursor:grabbing}
-.echo-hud-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.25em;color:rgba(255,209,220,.55);z-index:20;pointer-events:none;white-space:nowrap}
+/* 星轨回响 · 对称时间轴：中轴分隔，奇数靠左 / 偶数靠右 */
+.echo-timeline{position:relative;max-width:960px;margin:0 auto;padding:1rem 0 2rem}
+/* 中央垂直轴线 */
+.echo-axis{
+    position:absolute;top:0;bottom:0;left:50%;width:1px;
+    background:linear-gradient(to bottom,transparent,rgba(212,175,135,.35) 12%,rgba(212,175,135,.35) 88%,transparent);
+    pointer-events:none;
+}
+.echo-axis span{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:5px;height:5px;border-radius:50%;background:#d4af87;
+    box-shadow:0 0 8px rgba(212,175,135,.8);
+}
 
-/* 全息信标：指向坐标的 AR 标签（严格约束宽度 + 自动换行，避免压扁重叠） */
-.echo-beacon{
-    position:absolute;left:0;top:0;will-change:transform,opacity,filter;
-    padding:0.8rem 1.1rem;border-radius:100px;
-    background:rgba(255,255,255,.04);
-    -webkit-backdrop-filter:blur(10px) saturate(130%);backdrop-filter:blur(10px) saturate(130%);
-    border-top:1px solid rgba(255,255,255,.45);border-left:1px solid rgba(255,255,255,.22);
-    border-bottom:1px solid rgba(255,255,255,.05);border-right:1px solid rgba(255,255,255,.05);
-    box-shadow:0 12px 40px rgba(0,0,0,.3);
-    pointer-events:none;max-width:220px;min-width:120px;
-    white-space:normal;word-wrap:break-word;overflow-wrap:break-word;
+.echo-card{
+    position:relative;width:calc(50% - 40px);
+    margin:40px 0;padding:1.4rem 1.6rem;
+    border-radius:24px 8px 24px 8px;
+    word-wrap:break-word;overflow-wrap:break-word;
 }
-.echo-beacon::before{
-    content:'';position:absolute;left:50%;top:100%;transform:translateX(-50%);
-    width:1px;height:26px;background:linear-gradient(to bottom,rgba(255,209,220,.55),transparent);
+/* 左列：靠左贴轴线 */
+.echo-card.echo-left{margin-right:auto;text-align:right;border-radius:8px 24px 8px 24px}
+/* 右列：靠右贴轴线 */
+.echo-card.echo-right{margin-left:auto;text-align:left}
+/* 轴线节点：发光小点 */
+.echo-node{
+    position:absolute;top:1.8rem;width:9px;height:9px;border-radius:50%;
+    background:radial-gradient(circle,#ffd1dc 0%,#d4af87 55%,transparent 80%);
+    box-shadow:0 0 10px rgba(255,209,220,.7);pointer-events:none;
 }
-.echo-beacon-coords{font-family:'Space Mono',monospace;font-size:.52rem;letter-spacing:.18em;color:rgba(186,216,255,.8);margin-bottom:.3rem;white-space:nowrap}
-.echo-beacon-author{font-family:'Playfair Display',serif;font-size:.7rem;color:#ffd1dc;margin-bottom:.2rem;letter-spacing:.08em}
-.echo-beacon-body{font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif;font-size:.74rem;line-height:1.4;color:rgba(240,235,245,.85);white-space:normal;word-wrap:break-word;overflow-wrap:break-word}
-.echo-beacon-time{font-family:'Space Mono',monospace;font-size:.48rem;color:rgba(180,150,210,.5);margin-top:.4rem;text-align:right}
+.echo-left .echo-node{right:-48.5px;transform:translateX(0)}
+.echo-right .echo-node{left:-48.5px;transform:translateX(0)}
+/* 时间轴移动端适配：轴左移，全部卡片靠右 */
+@media(max-width:768px){
+    .echo-axis{left:22px}
+    .echo-card{width:calc(100% - 60px);margin:28px 0}
+    .echo-card.echo-left,.echo-card.echo-right{margin-left:auto;margin-right:12px;text-align:left;border-radius:24px 8px 24px 8px}
+    .echo-left .echo-node,.echo-right .echo-node{left:-38.5px;right:auto}
+    .echo-card{max-width:calc(100% - 72px)}
+}
+
+/* 全息信标卡片：严格约束宽度 + 自动换行，大字号可读 */
+.echo-beacon-coords{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.16em;color:rgba(186,216,255,.85);margin-bottom:.4rem;white-space:normal;word-break:break-word}
+.echo-beacon-author{font-family:'Playfair Display',serif;font-size:.82rem;color:#ffd1dc;margin-bottom:.4rem;letter-spacing:.08em}
+.echo-beacon-body{font-family:'PingFang SC','Helvetica Neue','Microsoft YaHei','Noto Serif SC',sans-serif;font-size:.92rem;line-height:1.6;color:rgba(240,235,245,.9);white-space:normal;word-wrap:break-word;overflow-wrap:break-word}
+.echo-beacon-time{font-family:'Space Mono',monospace;font-size:.52rem;color:rgba(180,150,210,.55);margin-top:.5rem;text-align:right}
 
 /* Echo Modal */
 .echo-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(5,5,16,.85);z-index:800;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;transition:all .5s ease}
@@ -314,7 +337,7 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
     transform:translate3d(0,0,0);will-change:transform;
     z-index:10;perspective:1200px;
 }
-.orbit-stage{transform-style:preserve-3d;will-change:transform}
+.orbit-stage{will-change:transform}
 
 /* 轨道中央行星（光源头）—— 生命之心，心跳辉光 */
 .orbit-center{
@@ -348,31 +371,7 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
     animation:breathe 5s ease-in-out infinite;
 }
 
-/* 丁达尔神之光：中心向外辐射体积光，随水晶位置动态切割 */
-/* 丁达尔神之光：纯 CSS 慢速自转（GPU 加速 transform，无 JS 更新，不引发 reflow） */
-.orbit-center .god-rays{
-    position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;
-}
-.orbit-center .god-rays::before{
-    content:'';position:absolute;left:-460px;top:-460px;width:920px;height:920px;border-radius:50%;
-    background:
-        conic-gradient(from 0deg at 50% 50%,
-            transparent 0deg, rgba(255,229,201,.12) 6deg,
-            transparent 14deg, rgba(255,214,190,.08) 20deg,
-            transparent 30deg, rgba(255,209,220,.1) 36deg,
-            transparent 46deg, rgba(255,229,201,.07) 52deg,
-            transparent 62deg, rgba(255,214,190,.09) 68deg,
-            transparent 80deg, rgba(255,229,201,.1) 86deg,
-            transparent 96deg);
-    -webkit-mask:radial-gradient(circle,transparent 46%,#000 54%,transparent 74%);
-    mask:radial-gradient(circle,transparent 46%,#000 54%,transparent 74%);
-    opacity:.35;
-    filter:blur(6px);
-    animation:slowSpin 40s linear infinite;
-    will-change:transform;
-    z-index:-1;
-}
-@keyframes slowSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+/* 轨道中央头像（旋转木马中心）—— 柔和呼吸光环，纯 CSS，零 JS */
 
 /* 轨道行星照片 */
 /* 玻璃记忆水晶：多层 box-shadow 伪造 3D 厚度 + 玻璃折射 */
@@ -497,9 +496,7 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
     .orbit-center{width:84px;height:84px}
     .portal-stage{flex-direction:column;gap:1.5rem}
     .gate-btn{padding:1.5rem 2.5rem}.gate-btn-text{font-size:1.2rem}
-    .echo-hud-container{height:300px}
-    .echo-beacon{max-width:200px;padding:.7rem 1rem}
-    .echo-beacon-body{font-size:.68rem}
+    .echo-beacon-coords{font-size:.54rem}.echo-beacon-body{font-size:.85rem}
     .planet{width:80px;height:80px}
     .planet-ring-left{width:110px;height:110px}.planet-ring-right{width:100px;height:100px}
     .music-capsule{top:1rem;right:1rem}

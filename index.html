@@ -20,10 +20,8 @@
     <div class="grain-overlay"></div>
     <canvas id="starfield-canvas"></canvas>
 
-    <!-- CSS 星云丝（GPU 加速，替代 canvas 巨型光团） -->
-    <div class="nebula-div nebula-1"></div>
-    <div class="nebula-div nebula-2"></div>
-    <div class="nebula-div nebula-3"></div>
+    <!-- 极光氛围层：柔和径向渐变，纯 GPU 合成 -->
+    <div class="aurora-bg" aria-hidden="true"></div>
     <!-- 静态星光层（填补低粒子数的氛围） -->
     <div class="static-stars" aria-hidden="true"></div>
 
@@ -151,11 +149,9 @@
                 <span class="echo-btn-text">+ 发射心声到星轨</span>
                 <span class="echo-btn-sub">Leave an Echo</span>
             </button>
-            <!-- 空间 HUD：全息回响信标漂浮在 3D 空间 -->
-            <div class="echo-hud-container">
-                <div class="echo-hud-stage" id="echo-hud-stage"></div>
-                <div class="echo-hud-hint">✦ 拖拽旋转 · 信标随宇宙转动 ✦</div>
-            </div>
+            <!-- 星轨回响 · 纵向时间轴（左/右对称分布） -->
+            <div class="echo-axis" aria-hidden="true"><span></span></div>
+            <div class="echo-timeline" id="echo-timeline"></div>
         </section>
 
         <!-- 记忆相册 -->

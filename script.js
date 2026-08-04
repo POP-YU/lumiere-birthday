@@ -12,16 +12,17 @@
     //   ServerChan https://sctapi.ftqq.com/<SENDKEY>.send  (payload 字段为 title + desp)
     var WEBHOOK_URL = 'https://enoa6f6r4m58l.x.pipedream.net/'; // 测试用 RequestBin，之后可替换为正式通道
 
-    // ============ 星尘粒子引擎 (Optimized for Mobile 60fps) ============
-    // 移动端优先：粒子数严格限制、clearRect 清屏、标准 alpha 混合
+    // ============ 轻量香槟星尘 (60fps 优先) ============
+    // 简单粒子：100-150 颗，缓慢上浮 + 轻柔左右摇摆，无复杂流场
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
-    var particles = [], mouse = { x: -1000, y: -1000 }, animationId;
+    var particles = [];
+    var animationId;
     var isMobile = window.innerWidth < 768;
     var DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
     var time = 0;
 
-    // 三色调色板：香槟金 / 柔粉 / 星光白（柔和低透明度，避免刺眼）
+    // 香槟 / 柔粉 / 星光白（低透明度，柔和不刺眼）
     var STARDUST_COLORS = [
         { r: 249, g: 229, b: 201 },  // #F9E5C9 Champagne Gold
         { r: 255, g: 209, b: 220 },  // #FFD1DC Soft Pastel Pink
@@ -38,38 +39,27 @@
 
     function initParticles() {
         var w = window.innerWidth, h = window.innerHeight;
-        var area = w * h;
-        // 严格数量上限：移动端 80-120，桌面 ~250
-        var density = isMobile ? 0.000045 : 0.00015;
-        var count = Math.floor(area * density);
-        count = Math.min(count, isMobile ? 120 : 250);
-        count = Math.max(count, isMobile ? 80 : 150);
+        var count = isMobile ? 100 : 150;
         particles = [];
         for (var i = 0; i < count; i++) {
             var ci = Math.floor(Math.random() * STARDUST_COLORS.length);
             var col = STARDUST_COLORS[ci];
-            // 约 55% 粒子进入赤道光河
-            var inRing = Math.random() < 0.55;
-            // 尺寸差异大：少数大星 + 多数小星，视觉丰富
             var big = Math.random() < 0.15;
             particles.push({
                 x: Math.random() * w,
                 y: Math.random() * h,
-                vx: (Math.random() - 0.5) * 0.2,
-                vy: (Math.random() - 0.5) * 0.2,
-                size: big ? (Math.random() * 2 + 2.4) : (Math.random() * 1.4 + 0.5),
-                baseSize: 0,
+                size: big ? (Math.random() * 2 + 2.2) : (Math.random() * 1.4 + 0.5),
                 color: 'rgba(' + col.r + ',' + col.g + ',' + col.b + ',',
-                // 低透明度柔和（0.25-0.55），不刺眼
-                opacity: Math.random() * 0.3 + 0.25,
+                opacity: Math.random() * 0.3 + 0.3,
+                baseSize: 0,
                 twinklePhase: Math.random() * Math.PI * 2,
-                twinkleSpeed: Math.random() * 0.018 + 0.005,
-                driftX: Math.random() * 360,
-                driftY: Math.random() * 360,
-                inRing: inRing,
-                ringAngle: Math.random() * Math.PI * 2,
-                ringRadius: w * (0.22 + Math.random() * 0.18),
-                ringSpeed: (Math.random() * 0.5 + 0.25) * (Math.random() < 0.5 ? 1 : -1)
+                twinkleSpeed: Math.random() * 0.02 + 0.008,
+                driftX: Math.random() * Math.PI * 2,
+                driftY: Math.random() * Math.PI * 2,
+                // 上浮速度（慢），摇摆幅度（小）
+                vy: -(Math.random() * 0.18 + 0.06),
+                swayAmp: Math.random() * 0.6 + 0.2,
+                swaySpeed: Math.random() * 0.02 + 0.008
             });
             particles[i].baseSize = particles[i].size;
         }
@@ -79,62 +69,34 @@
         var w = window.innerWidth, h = window.innerHeight;
         time += 0.016;
 
-        // 移动端用 clearRect（避免拖尾的全屏合成）；桌面保留短拖尾营造光轨
+        // 移动端 clearRect，桌面保留轻微拖尾（更省 GPU）
         if (isMobile) {
             ctx.clearRect(0, 0, w, h);
         } else {
-            ctx.fillStyle = 'rgba(7, 7, 15, 0.12)';
+            ctx.fillStyle = 'rgba(7, 7, 15, 0.1)';
             ctx.fillRect(0, 0, w, h);
         }
 
-        var cx0 = w / 2, cy0 = h / 2;
-        var mx = mouse.x, my = mouse.y;
-        // 声画共鸣：高音推快星尘漂移速度（音乐高潮 → 星河奔涌）
-        var driftBoost = 1 + audioTreble * 2.5 + audioPulse * 3;
-        // 标准 alpha 混合（无 'lighter'，省 GPU + 不刺眼）
         for (var i = 0; i < particles.length; i++) {
             var p = particles[i];
 
-            // 鼠标涡旋斥力（保留交互）
-            var dx = p.x - mx, dy = p.y - my;
-            var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 150 && dist > 0.5) {
-                var force = (1 - dist / 150) * 0.8;
-                var fx = dx / dist * force * 1.5;
-                var fy = dy / dist * force * 1.5;
-                var swirl = force * 1.0;
-                p.vx += (fx - dy / dist * swirl) * 0.16;
-                p.vy += (fy + dx / dist * swirl) * 0.16;
-            }
+            // 上浮 + 轻柔左右摇摆（正弦）
+            p.y += p.vy;
+            p.x += Math.sin(time * p.swaySpeed + p.driftX) * p.swayAmp * 0.35;
 
-            if (p.inRing) {
-                p.ringAngle += p.ringSpeed * 0.016 * driftBoost;
-                var ringCX = cx0 + Math.sin(time * 0.5 + p.twinklePhase) * 18;
-                var ringCY = cy0 + Math.cos(time * 0.4 + p.twinklePhase) * 12;
-                var tx = ringCX + Math.cos(p.ringAngle) * p.ringRadius;
-                var ty = ringCY + Math.sin(p.ringAngle) * p.ringRadius * 0.55;
-                p.x += (tx - p.x) * 0.02;
-                p.y += (ty - p.y) * 0.02;
-                p.x += Math.cos(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.3 * driftBoost;
-                p.y += Math.sin(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.3 * 0.55 * driftBoost;
-            } else {
-                p.vx *= 0.98;
-                p.vy *= 0.98;
-                p.vx += Math.sin((p.driftX + p.twinklePhase) * 0.01) * 0.005 * driftBoost;
-                p.vy += Math.cos((p.driftY + p.twinklePhase) * 0.01) * 0.005 * driftBoost;
-                p.x += p.vx;
-                p.y += p.vy;
-            }
+            // 缓慢旋转的轻微漂移
+            p.x += Math.sin(p.driftY) * 0.02;
 
-            if (p.x < -20) p.x = w + 20; if (p.x > w + 20) p.x = -20;
-            if (p.y < -20) p.y = h + 20; if (p.y > h + 20) p.y = -20;
+            // 出界回绕
+            if (p.y < -20) { p.y = h + 20; p.x = Math.random() * w; }
+            if (p.x < -20) p.x = w + 20;
+            if (p.x > w + 20) p.x = -20;
 
             p.twinklePhase += p.twinkleSpeed;
             var alpha = p.opacity * (0.6 + 0.4 * Math.sin(p.twinklePhase));
             if (alpha < 0.04) alpha = 0.04;
-            p.size = p.baseSize * (1 + 0.3 * Math.sin(p.twinklePhase * 0.7));
+            p.size = p.baseSize * (1 + 0.25 * Math.sin(p.twinklePhase * 0.7));
 
-            // 标准 alpha 混合绘制
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fillStyle = p.color + alpha + ')';
@@ -155,78 +117,10 @@
         DPR = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
         resizeCanvas();
     });
-    window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
-    window.addEventListener('touchmove', function(e) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: true });
     resizeCanvas();
     drawStars();
 
-    // ═══════ 三大沉浸系统：陀螺仪视窗 / 声画共鸣 / 丁达尔光 ═══════
-
-    // ① 陀螺仪物理视窗：手机倾斜 → 相机视差偏移（微观调整）
-    var gyro = { beta: 0, gamma: 0, targetBX: 0, targetBY: 0, bx: 0, by: 0, active: false };
-    function initGyro() {
-        // 仅在支持 DeviceOrientation 的设备上启用
-        if (!('DeviceOrientationEvent' in window)) return;
-        // iOS 13+ 需要用户授权
-        var requestPermission = (typeof DeviceOrientationEvent !== 'undefined') && DeviceOrientationEvent.requestPermission;
-        function enable() {
-            window.addEventListener('deviceorientation', function(e) {
-                if (e.beta === null || e.gamma === null) return;
-                // beta: 前后倾斜 (-180~180), gamma: 左右倾斜 (-90~90)
-                // 归一化为视差偏移：±20px 微调相机
-                gyro.targetBX = (e.gamma || 0) / 45;   // 左右 → 相机 X
-                gyro.targetBY = (e.beta || 0) / 45;    // 前后 → 相机 Y
-                gyro.targetBX = Math.max(-1, Math.min(1, gyro.targetBX));
-                gyro.targetBY = Math.max(-1, Math.min(1, gyro.targetBY));
-                gyro.active = true;
-            });
-        }
-        if (requestPermission) {
-            // iOS：需要用户手势触发授权（放在 gate 点击后调用）
-            document.addEventListener('DOMContentLoaded', function() {
-                document.getElementById('gate-btn').addEventListener('click', function() {
-                    try { DeviceOrientationEvent.requestPermission().then(function(state) { if (state === 'granted') enable(); }).catch(function(){}); } catch(e) {}
-                }, { once: false });
-            });
-        } else {
-            enable();
-        }
-    }
-    initGyro();
-
-    // ② 声画共鸣：每帧提取频率，低音 → 心跳脉冲，高音 → 粒子速度
-    function audioReactiveTick() {
-        if (musicAnalyser && musicFreqData) {
-            try {
-                musicAnalyser.getByteFrequencyData(musicFreqData);
-                musicAnalyser.getByteTimeDomainData(musicTimeData);
-                var n = musicFreqData.length;
-                // 低频 (Bass): 前 1/8 bins
-                var bassSum = 0, bassN = Math.max(1, Math.floor(n / 8));
-                for (var i = 0; i < bassN; i++) bassSum += musicFreqData[i];
-                var bassAvg = bassSum / bassN / 255;
-                // 高频 (Treble): 后 1/3 bins
-                var trebSum = 0, trebN = Math.max(1, Math.floor(n / 3));
-                for (var j = n - trebN; j < n; j++) trebSum += musicFreqData[j];
-                var trebAvg = trebSum / trebN / 255;
-                // 低音平滑（鼓点感知），并检测瞬时脉冲
-                audioBass += (bassAvg - audioBass) * 0.4;
-                audioTreble += (trebAvg - audioTreble) * 0.3;
-                var peak = Math.max(0, bassAvg - audioBass);  // 鼓点瞬时超过平滑基线
-                audioPulse += (peak * 4 - audioPulse) * 0.5;
-                if (audioPulse < 0.02) audioPulse = 0;
-            } catch(e) { audioBass = 0; audioTreble = 0; audioPulse = 0; }
-        } else {
-            // 无声 → 缓慢归零
-            audioBass *= 0.92; audioTreble *= 0.92; audioPulse *= 0.9;
-        }
-        requestAnimationFrame(audioReactiveTick);
-    }
-    requestAnimationFrame(audioReactiveTick);
-
-    // ③ 丁达尔神之光：已改为纯 CSS 慢速自转（@keyframes slowSpin），无需 JS 更新
-
-    // ============ 加载器 ============
+    // ═══ 加载器 ═══
     var loader = document.getElementById('preamble-loader');
     var fill = document.getElementById('loader-fill');
     var loaderText = document.getElementById('loader-text');
@@ -1127,35 +1021,17 @@
         return div;
     }
 
-    // ═══════ 360° 全向 Fibonacci 球面引擎 (Dyson Sphere / Atom Model) ═══════
+    // ═══════ Y 轴旋转木马 (Merry-go-round) ═══════
+    // 每张照片 rotateY(i * 360/N) 分布在巨大圆周上，translateZ(radius) 远离圆心。
+    // 拖拽水平旋转 + 惯性摩擦，空闲时缓慢优雅自转。无陀螺仪、无音频反应、无丁达尔光。
     var orbit = {
         viewport: null, stage: null, items: [],
-        // 三维旋转角（绕 X / Y / Z 轴）
-        rotX: 0, rotY: 0, rotZ: 0,
-        targetRotX: 0, targetRotY: 0, targetRotZ: 0,
-        velX: 0, velY: 0, velZ: 0,
-        // 离心相机缩放：拖拽速度快 → 缩小 (zoom out)，减速 → 回弹 scale(1)
-        camScale: 1, camTargetScale: 1,
-        // 空闲自动翻滚速度（三轴各自独立，营造失重翻滚）
-        autoSpeedX: 0.0011, autoSpeedY: 0.0018, autoSpeedZ: 0.0005,
-        dragging: false, lastX: 0, lastY: 0,
-        mouseX: -9999, mouseY: -9999,
+        angle: 0, targetAngle: 0, velocity: 0,
+        autoSpeed: 0.0006,              // 空闲自转速度（优雅缓慢）
+        dragging: false, lastX: 0,
+        radius: 700, itemW: 190, itemH: 266,
         raf: 0
     };
-
-    // Fibonacci 球面分布：N 个点均匀铺满球面
-    function fibonacciSphere(index, N) {
-        var phi = Math.acos(1 - 2 * (index + 0.5) / N);
-        var theta = Math.PI * (1 + Math.sqrt(5)) * (index + 0.5);
-        return {
-            phi: phi,
-            theta: theta,
-            // 返回单位球上的归一化方向 (x, y, z)
-            x: Math.cos(theta) * Math.sin(phi),
-            y: Math.cos(phi),
-            z: Math.sin(theta) * Math.sin(phi)
-        };
-    }
 
     function initOrbit() {
         orbit.viewport = document.getElementById('gallery-viewport');
@@ -1187,36 +1063,27 @@
 
         function buildOrbit() {
             galleryPhotos.sort(function(a, b) { return a.index - b.index; });
-
-            var mobile = window.innerWidth < 768;
-            // 动态半径：铺满整个屏幕，绝不拥挤
-            var R = Math.max(window.innerWidth, window.innerHeight) * 0.45;
-            R = Math.min(R, 920);
-            R = Math.max(R, mobile ? 300 : 560);
-            var itemW = mobile ? 130 : 190;
-            var itemH = mobile ? 182 : 266;
-            orbit._R = R;
-            orbit._itemW = itemW;
-            orbit._itemH = itemH;
+            updateOrbitMetrics();
 
             var count = galleryPhotos.length;
+            var step = 360 / count;
             galleryPhotos.forEach(function(photo, k) {
                 var item = createGalleryItem(photo.src, photo.index);
-                var dir = fibonacciSphere(k, count);   // 单位球方向
-                item.style.width = itemW + 'px';
-                item.style.height = itemH + 'px';
-                item.style.left = (-itemW / 2) + 'px';
-                item.style.top = (-itemH / 2) + 'px';
-                item._dir = dir;
+                item.style.width = orbit.itemW + 'px';
+                item.style.height = orbit.itemH + 'px';
+                item.style.left = (-orbit.itemW / 2) + 'px';
+                item.style.top = (-orbit.itemH / 2) + 'px';
+                // 关键：每张照片绕 Y 轴固定角度
+                item._angle = k * step;
                 item.style.opacity = '0';
                 grid.appendChild(item);
                 orbit.items.push(item);
             });
 
-            // 中心光源：花花头像
+            // 中心光源：花花头像（不再有丁达尔光）
             var centerWrap = document.createElement('div');
             centerWrap.className = 'orbit-center';
-            centerWrap.innerHTML = '<img src="images/huahua.jpg" class="orbit-center-avatar" alt="花花"><div class="god-rays"></div>';
+            centerWrap.innerHTML = '<img src="images/huahua.jpg" class="orbit-center-avatar" alt="花花">';
             grid.appendChild(centerWrap);
             orbit.center = centerWrap;
 
@@ -1225,168 +1092,109 @@
         }
     }
 
-    // 3D 旋转矩阵：把球面点 (x,y,z) 绕 X→Y→Z 轴旋转，返回旋转后的坐标
-    function rotatePoint(x, y, z, rx, ry, rz) {
-        // 绕 X
-        var y1 = y * Math.cos(rx) - z * Math.sin(rx);
-        var z1 = y * Math.sin(rx) + z * Math.cos(rx);
-        // 绕 Y
-        var x2 = x * Math.cos(ry) + z1 * Math.sin(ry);
-        var z2 = -x * Math.sin(ry) + z1 * Math.cos(ry);
-        // 绕 Z
-        var x3 = x2 * Math.cos(rz) - y1 * Math.sin(rz);
-        var y3 = x2 * Math.sin(rz) + y1 * Math.cos(rz);
-        return { x: x3, y: y3, z: z2 };
+    // 动态半径：宽高的 45%，至少 400px，绝不拥挤
+    function updateOrbitMetrics() {
+        var mobile = window.innerWidth < 768;
+        var R = Math.max(window.innerWidth * 0.45, 400);
+        R = Math.min(R, mobile ? 620 : 900);
+        orbit.radius = R;
+        orbit.itemW = mobile ? 130 : 190;
+        orbit.itemH = mobile ? 182 : 266;
     }
 
     function bindOrbitEvents() {
         var vp = orbit.viewport;
 
-        function start(x, y) { orbit.dragging = true; orbit.lastX = x; orbit.lastY = y; vp.classList.add('dragging'); }
-        function move(x, y) {
-            var rect = vp.getBoundingClientRect();
-            orbit.mouseX = x - rect.left;
-            orbit.mouseY = y - rect.top;
+        function start(x) { orbit.dragging = true; orbit.lastX = x; vp.classList.add('dragging'); }
+        function move(x) {
             if (!orbit.dragging) return;
-            var dx = x - orbit.lastX, dy = y - orbit.lastY;
-            orbit.lastX = x; orbit.lastY = y;
-            // 全向拖拽：dX → 绕 Y 轴，dY → 绕 X 轴
-            orbit.targetRotY += dx * 0.006;
-            orbit.targetRotX += dy * 0.006;
-            orbit.velY = dx * 0.006;
-            orbit.velX = dy * 0.006;
-            // 离心相机缩放：拖拽速度越快 → 越缩小 (zoom out 看全貌)
-            var speed = Math.sqrt(dx * dx + dy * dy);
-            var targetScale = 1 - Math.min(speed / 220, 1) * 0.18;   // 最高缩到 0.82
-            orbit.camTargetScale = Math.min(orbit.camTargetScale, targetScale);
+            var dx = x - orbit.lastX;
+            orbit.lastX = x;
+            // 水平拖拽 → 旋转木马角度变化（手感：拖 1px → 转 0.003 rad）
+            orbit.targetAngle += dx * 0.003;
+            orbit.velocity = dx * 0.003;
         }
         function end() {
             if (!orbit.dragging) return;
             orbit.dragging = false;
             vp.classList.remove('dragging');
-            // 释放后回弹到 scale(1)
-            orbit.camTargetScale = 1;
         }
 
-        vp.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX, e.clientY); });
-        window.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
+        vp.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX); });
+        window.addEventListener('mousemove', function(e) { move(e.clientX); });
         window.addEventListener('mouseup', end);
-        vp.addEventListener('touchstart', function(e) { e.preventDefault(); var t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: false });
-        vp.addEventListener('touchmove', function(e) { e.preventDefault(); var t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: false });
+        vp.addEventListener('touchstart', function(e) { e.preventDefault(); var t = e.touches[0]; start(t.clientX); }, { passive: false });
+        vp.addEventListener('touchmove', function(e) { e.preventDefault(); var t = e.touches[0]; move(t.clientX); }, { passive: false });
         vp.addEventListener('touchend', end);
         vp.addEventListener('touchcancel', end);
-        vp.addEventListener('mouseleave', function() { orbit.mouseX = -9999; orbit.mouseY = -9999; });
 
         vp.addEventListener('click', function(e) {
-            if (Math.abs(orbit.velX) + Math.abs(orbit.velY) > 0.01) e.stopPropagation();
+            if (Math.abs(orbit.velocity) > 0.01) e.stopPropagation();
         });
 
-        // 窗口缩放：重算半径
+        // 窗口缩放：重算半径与尺寸（不重建 DOM，下一帧自动生效）
         var resizeT = null;
         window.addEventListener('resize', function() {
             clearTimeout(resizeT);
-            resizeT = setTimeout(function() {
-                var mobile = window.innerWidth < 768;
-                var R = Math.max(window.innerWidth, window.innerHeight) * 0.45;
-                R = Math.min(R, 920);
-                R = Math.max(R, mobile ? 300 : 560);
-                orbit._R = R;
-                orbit._itemW = mobile ? 130 : 190;
-                orbit._itemH = mobile ? 182 : 266;
-            }, 150);
+            resizeT = setTimeout(updateOrbitMetrics, 150);
         });
     }
 
     function orbitLoop() {
-        // 空闲三维翻滚（三轴各自缓慢，失重 tumbling）
-        // Apple 式平滑：摩擦 0.94 温和减速，阈值低 → 优雅停驻
-        // 声画共鸣：高频推高翻滚速度，低频推高 Z 轴微动（音乐高潮 → 星系加速）
-        var audioBoost = 1 + audioTreble * 2.2 + audioPulse * 3;
-        var bassNudge = audioBass * 0.35;
-
+        // 空闲时惯性减速 + 优雅自转；拖拽中不叠加自转（避免抢手）
         if (!orbit.dragging) {
-            orbit.velX *= 0.94; if (Math.abs(orbit.velX) < 0.00045) orbit.velX = 0;
-            orbit.velY *= 0.94; if (Math.abs(orbit.velY) < 0.00045) orbit.velY = 0;
-            orbit.velZ *= 0.94; if (Math.abs(orbit.velZ) < 0.0004) orbit.velZ = 0;
-            // 音乐驱动：翻滚速度 = 基础 + 音频加成（高潮加速）
-            orbit.targetRotX += orbit.autoSpeedX * audioBoost + orbit.velX;
-            orbit.targetRotY += orbit.autoSpeedY * audioBoost + orbit.velY;
-            orbit.targetRotZ += (orbit.autoSpeedZ + bassNudge * 0.002) * audioBoost + orbit.velZ;
+            orbit.velocity *= 0.96;
+            if (Math.abs(orbit.velocity) < 0.0002) orbit.velocity = 0;
+            orbit.targetAngle += orbit.autoSpeed + orbit.velocity;
         }
-        // Lerp 平滑收敛
-        orbit.rotX += (orbit.targetRotX - orbit.rotX) * 0.12;
-        orbit.rotY += (orbit.targetRotY - orbit.rotY) * 0.12;
-        orbit.rotZ += (orbit.targetRotZ - orbit.rotZ) * 0.12;
 
-        // 陀螺仪视窗：手机倾斜 → 相机 X/Y 偏移（lerp 平滑）
-        gyro.bx += (gyro.targetBX - gyro.bx) * 0.08;
-        gyro.by += (gyro.targetBY - gyro.by) * 0.08;
-        var gyroOffX = gyro.bx * 60;   // ±60px 视差
-        var gyroOffY = gyro.by * 40;
+        // Lerp 平滑收敛（buttery smooth）
+        orbit.angle += (orbit.targetAngle - orbit.angle) * 0.12;
 
-        var cx = orbit.viewport.clientWidth / 2;
-        var cy = orbit.viewport.clientHeight / 2;
+        var vp = orbit.viewport;
+        var cx = vp.clientWidth / 2;
+        var cy = vp.clientHeight / 2;
         var items = orbit.items;
-        var R = orbit._R || 700;
+        var R = orbit.radius;
 
-        // 追踪最近水晶角度 → 驱动丁达尔光遮挡
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
-            var dir = it._dir;
-            // 单位方向 * 半径，得到球面上的 3D 坐标
-            var rawX = dir.x * R, rawY = dir.y * R, rawZ = dir.z * R;
-            // 三维旋转（翻滚）
-            var p = rotatePoint(rawX, rawY, rawZ, orbit.rotX, orbit.rotY, orbit.rotZ);
-            var z = p.z, x = p.x, y = p.y;
+            var a = it._angle * Math.PI / 180 + orbit.angle;
+            // 圆周坐标：相机看向 -Z，前方为正
+            var x = Math.sin(a) * R;
+            var z = Math.cos(a) * R;
 
-            // 深度排序
-            it.style.zIndex = Math.round(z + R);
-
-            // 景深：背后模糊 + 透明
+            // 深度：前(+z)为近，后(-z)为远
             var depth = (z + R) / (R * 2);
-            var blurAmt = (1 - depth) * 3.2;
-            var opacity = 0.35 + depth * 0.65;
+            // 景深：远模糊 + 降透明，前清晰
+            var blurAmt = (1 - depth) * 3;
+            var opacity = 0.3 + depth * 0.7;
 
-            // 相机距离越近越大（真实透视）
-            var persp = 1.2 / (1.2 - depth);          // 透视系数
-            var scale = (0.45 + depth * 0.75) * persp;
-            scale = Math.min(scale, 1.6);
+            // 透视缩放：近大远小（基础 + 深度驱动）
+            var scale = 0.55 + depth * 0.75;
+            scale = Math.min(scale, 1.35);
 
-            // 屏幕投影（含陀螺仪视差偏移）
-            var screenX = cx + x * (0.6 + depth * 0.55) + gyroOffX * (0.4 + depth * 0.6);
-            var screenY = cy + y * (0.6 + depth * 0.55) - (1 - depth) * 40 + gyroOffY * (0.4 + depth * 0.6);
+            // 屏幕投影：左右位置用 x，Y 轴平齐（旋转木马）
+            var screenX = cx + x * 0.85;
+            var screenY = cy;
 
-            // 光照：面向相机（z 大 = 面向）时更亮；音乐低频推亮（声画共鸣）
-            var facing = (z / R + 1) / 2;
-            var glare = 0.15 + facing * 0.25 + audioBass * 0.15;
+            // 3D 层次与光照（前亮后暗）
+            it.style.zIndex = Math.round(z + R);
+            var facing = depth;
+            var glare = 0.12 + facing * 0.3;
 
-            // 广告牌：counter-rotation 让照片始终面向相机（绕 Y 然后绕 X）
-            // 基于点在相机空间的位置 (x, y, z)，旋转平面使其法线朝向 (0,0,1)
-            var distXY = Math.sqrt(x * x + z * z);
-            var billY = Math.atan2(x, z) * 180 / Math.PI;
-            var billX = -Math.atan2(y, Math.max(distXY, 0.001)) * 180 / Math.PI;
-
-            it.style.transform = 'translate3d(' + screenX.toFixed(1) + 'px,' + screenY.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ') rotateY(' + billY.toFixed(1) + 'deg) rotateX(' + billX.toFixed(1) + 'deg)';
+            // 手动投影旋转木马：照片始终正面朝相机（纯 2D 合成，最省 GPU）
+            it.style.transform = 'translate3d(' + screenX.toFixed(1) + 'px,' + screenY.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ')';
             it.style.filter = 'blur(' + blurAmt.toFixed(2) + 'px)';
             it.style.opacity = opacity.toFixed(2);
-            it.style.boxShadow = '0 0 ' + (glare * 140).toFixed(0) + 'px rgba(255,224,200,' + (glare * 0.5).toFixed(2) + '), inset 0 0 40px rgba(255,255,255,' + (glare * 0.35).toFixed(2) + ')';
+            it.style.boxShadow = '0 0 ' + (glare * 140).toFixed(0) + 'px rgba(255,224,200,' + (glare * 0.45).toFixed(2) + '), inset 0 0 40px rgba(255,255,255,' + (glare * 0.3).toFixed(2) + ')';
             it._depth = depth;
         }
 
-        // 丁达尔神之光：不再每帧更新 CSS 变量（改纯 CSS 自转，避免 reflow）
-        // 光强度改由低频驱动 transform scale 动画，已移除 setProperty
-
-        // 中心行星固定（光源头）+ 心跳随音乐脉冲
+        // 中心头像：固定在视口正中（旋转木马中心），柔和呼吸
         if (orbit.center) {
-            var heartScale = 1 + audioPulse * 0.35 + audioBass * 0.12;
-            orbit.center.style.transform = 'translate3d(' + (cx + gyroOffX).toFixed(1) + 'px,' + (cy + gyroOffY).toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + heartScale.toFixed(3) + ')';
+            orbit.center.style.transform = 'translate3d(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px,0) translate(-50%,-50%)';
         }
-
-        // 离心相机缩放：Lerp 平滑趋近目标，释放后回弹 scale(1)
-        orbit.camScale += (orbit.camTargetScale - orbit.camScale) * 0.1;
-        if (Math.abs(orbit.camScale - orbit.camTargetScale) < 0.002) orbit.camScale = orbit.camTargetScale;
-        // 应用到 3D 舞台（zoom out 看全貌 / zoom in 沉浸）
-        orbit.stage.style.transform = 'scale(' + orbit.camScale.toFixed(3) + ')';
 
         orbit.raf = requestAnimationFrame(orbitLoop);
     }
@@ -1672,115 +1480,41 @@
     }
     function saveEchoes() { try { localStorage.setItem('starlight-echoes', JSON.stringify(userEchoes)); } catch(e) {} }
 
-    // ═══ 空间 HUD 回响信标（3D 漂浮）═══
-    var echoHUD = {
-        stage: null, beacons: [],
-        rotX: 0, rotY: 0, rotZ: 0,
-        targetRotX: 0, targetRotY: 0, targetRotZ: 0,
-        velX: 0, velY: 0, velZ: 0,
-        autoSpeedX: 0.0009, autoSpeedY: 0.0014, autoSpeedZ: 0.0004,
-        dragging: false, lastX: 0, lastY: 0,
-        raf: 0
-    };
+    // ═══ 星轨回响 · 对称时间轴（奇数靠左 / 偶数靠右）═══
+    // 评论从 3D 球面移出，改为中轴线两侧分布的大号可读卡片，60fps 纯静态。
 
-    function createEchoBeacon(echo) {
-        var beacon = document.createElement('div');
-        beacon.className = 'echo-beacon';
+    function createEchoCard(echo, index) {
+        var card = document.createElement('div');
+        card.className = 'echo-card glass-card';
+        // 奇偶决定左右：0、2、4… 左；1、3、5… 右（从中间轴线向两侧展开）
+        if (index % 2 === 0) card.classList.add('echo-left');
+        else card.classList.add('echo-right');
+
+        // 轴线上的节点（发光小点）
+        var node = document.createElement('span');
+        node.className = 'echo-node';
+        card.appendChild(node);
+
         var coords = document.createElement('div'); coords.className = 'echo-beacon-coords'; coords.textContent = echo.coords;
         var author = document.createElement('div'); author.className = 'echo-beacon-author'; author.textContent = '— ' + echo.author;
         var body = document.createElement('div'); body.className = 'echo-beacon-body'; body.textContent = echo.body;
         var time = document.createElement('div'); time.className = 'echo-beacon-time'; time.textContent = echo.time || '✦ 已入轨';
-        beacon.appendChild(coords); beacon.appendChild(author); beacon.appendChild(body); beacon.appendChild(time);
-        return beacon;
+
+        var content = document.createElement('div');
+        content.className = 'echo-card-content';
+        content.appendChild(coords); content.appendChild(author); content.appendChild(body); content.appendChild(time);
+        card.appendChild(content);
+        return card;
     }
 
-    function renderEchoHUD() {
-        var stage = document.getElementById('echo-hud-stage');
-        if (!stage) return;
-        stage.innerHTML = '';
-        echoHUD.beacons = [];
+    function renderEchoTimeline() {
+        var timeline = document.getElementById('echo-timeline');
+        if (!timeline) return;
+        timeline.innerHTML = '';
         var N = echoesData.length;
-        // 双球壳：回声信标用外层球（照片半径 × 1.4），与照片在 3D 空间分离
-        var photoR = Math.max(window.innerWidth, window.innerHeight) * 0.4;
-        var echoR = photoR * 1.4;
         for (var i = 0; i < N; i++) {
-            var beacon = createEchoBeacon(echoesData[i]);
-            // Fibonacci 球面分布：信标均匀铺满外层球面
-            beacon._dir = fibonacciSphere(i, N);
-            beacon._radius = echoR;
-            stage.appendChild(beacon);
-            echoHUD.beacons.push(beacon);
+            timeline.appendChild(createEchoCard(echoesData[i], i));
         }
-        bindEchoHUDEvents();
-        requestAnimationFrame(echoHUDLoop);
-    }
-
-    function bindEchoHUDEvents() {
-        var stage = echoHUD.stage = document.getElementById('echo-hud-stage');
-        if (!stage) return;
-        function start(x, y) { echoHUD.dragging = true; echoHUD.lastX = x; echoHUD.lastY = y; stage.classList.add('dragging'); }
-        function move(x, y) {
-            if (!echoHUD.dragging) return;
-            var dx = x - echoHUD.lastX, dy = y - echoHUD.lastY;
-            echoHUD.lastX = x; echoHUD.lastY = y;
-            echoHUD.targetRotY += dx * 0.008;
-            echoHUD.targetRotX += dy * 0.008;
-            echoHUD.velY = dx * 0.008;
-            echoHUD.velX = dy * 0.008;
-        }
-        function end() { if (!echoHUD.dragging) return; echoHUD.dragging = false; stage.classList.remove('dragging'); }
-        stage.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX, e.clientY); });
-        window.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
-        window.addEventListener('mouseup', end);
-        stage.addEventListener('touchstart', function(e) { e.preventDefault(); var t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: false });
-        stage.addEventListener('touchmove', function(e) { e.preventDefault(); var t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: false });
-        stage.addEventListener('touchend', end);
-        stage.addEventListener('touchcancel', end);
-    }
-
-    function echoHUDLoop() {
-        var stage = echoHUD.stage;
-        if (!stage) return;
-        if (!echoHUD.dragging) {
-            echoHUD.velX *= 0.95; if (Math.abs(echoHUD.velX) < 0.0007) echoHUD.velX = 0;
-            echoHUD.velY *= 0.95; if (Math.abs(echoHUD.velY) < 0.0007) echoHUD.velY = 0;
-            echoHUD.velZ *= 0.95; if (Math.abs(echoHUD.velZ) < 0.0006) echoHUD.velZ = 0;
-            echoHUD.targetRotX += echoHUD.autoSpeedX + echoHUD.velX;
-            echoHUD.targetRotY += echoHUD.autoSpeedY + echoHUD.velY;
-            echoHUD.targetRotZ += echoHUD.autoSpeedZ + echoHUD.velZ;
-        }
-        echoHUD.rotX += (echoHUD.targetRotX - echoHUD.rotX) * 0.12;
-        echoHUD.rotY += (echoHUD.targetRotY - echoHUD.rotY) * 0.12;
-        echoHUD.rotZ += (echoHUD.targetRotZ - echoHUD.rotZ) * 0.12;
-
-        var sw = stage.clientWidth, sh = stage.clientHeight;
-        var cx = sw / 2, cy = sh / 2;
-        // 外层球半径（1.4x）太大，投影时归一化到视口内
-        var projR = Math.min(sw, sh) * 0.38;
-        for (var i = 0; i < echoHUD.beacons.length; i++) {
-            var b = echoHUD.beacons[i];
-            var dir = b._dir;
-            var R = b._radius;
-            var p = rotatePoint(dir.x * R, dir.y * R, dir.z * R, echoHUD.rotX, echoHUD.rotY, echoHUD.rotZ);
-            var z = p.z, x = p.x, y = p.y;
-            // 归一化：方向 × 投影半径（保持球面几何但塞进视口）
-            var nx = x / R * projR, ny = y / R * projR, nz = z / R * projR;
-            var depth = (nz + projR) / (projR * 2);
-            var scale = 0.6 + depth * 0.6;
-            var opacity = 0.25 + depth * 0.75;
-            var blur = (1 - depth) * 2.2;
-            // 广告牌：信标朝向相机
-            var distXY = Math.sqrt(nx * nx + nz * nz);
-            var billY = Math.atan2(nx, nz) * 180 / Math.PI;
-            var billX = -Math.atan2(ny, Math.max(distXY, 0.001)) * 180 / Math.PI;
-            var sx = cx + nx * (0.6 + depth * 0.5);
-            var sy = cy + ny * (0.6 + depth * 0.5);
-            b.style.zIndex = Math.round(nz + projR);
-            b.style.transform = 'translate3d(' + sx.toFixed(1) + 'px,' + sy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ') rotateY(' + billY.toFixed(1) + 'deg) rotateX(' + billX.toFixed(1) + 'deg)';
-            b.style.opacity = opacity.toFixed(2);
-            b.style.filter = 'blur(' + blur.toFixed(2) + 'px)';
-        }
-        echoHUD.raf = requestAnimationFrame(echoHUDLoop);
     }
 
     function addEcho(author, body) {
@@ -1788,7 +1522,7 @@
         var ts = now.getFullYear() + '.' + String(now.getMonth()+1).padStart(2,'0') + '.' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
         var echo = { coords: '[ 新信号 · ' + ts + ' ]', author: author || '匿名旅人', body: body, time: '✦ 刚刚入轨' };
         userEchoes.unshift(echo); saveEchoes();
-        echoesData = userEchoes.concat(presetEchoes); renderEchoHUD();
+        echoesData = userEchoes.concat(presetEchoes); renderEchoTimeline();
         return echo;
     }
 
@@ -1930,7 +1664,7 @@
     }
 
     function initEchoes() {
-        loadEchoes(); renderEchoHUD(); initEchoModal();
+        loadEchoes(); renderEchoTimeline(); initEchoModal();
         var launchBtn = document.getElementById('echo-launch-btn');
         if (launchBtn) {
             launchBtn.addEventListener('click', function() {
