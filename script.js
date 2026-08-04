@@ -14,17 +14,26 @@
 
     // ============ 星尘粒子引擎 (Interactive Stardust Physics) ============
     // 500-800 发光粒子 · 香槟金/粉/白三色 · 鼠标涡旋斥力 · 光尾拖影
+    // 童话宇宙：流体星云丝 + 赤道光河 + 生命之心
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
     var particles = [], mouse = { x: -1000, y: -1000 }, animationId;
     var isMobile = window.innerWidth < 768;
     var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    var nebulaBlobs = [];       // 流体星云丝
+    var time = 0;
 
     // 三色调色板：香槟金 / 柔粉 / 星光白
     var STARDUST_COLORS = [
         { r: 249, g: 229, b: 201 },  // #F9E5C9 Champagne Gold
         { r: 255, g: 209, b: 220 },  // #FFD1DC Soft Pastel Pink
         { r: 255, g: 248, b: 240 }   // Starlight White
+    ];
+    // 星云丝调色板：柔薰衣草 / 淡蜜桃
+    var NEBULA_COLORS = [
+        'rgba(186, 180, 220, ',   // Soft Lavender
+        'rgba(255, 214, 190, ',   // Pale Peach
+        'rgba(255, 209, 220, '    // Soft Pink
     ];
 
     function resizeCanvas() {
@@ -33,7 +42,28 @@
         canvas.height = Math.round(window.innerHeight * DPR);
         ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
         initParticles();
+        initNebula();
     }
+
+    // 流体星云丝：缓慢移动的柔光团
+    function initNebula() {
+        nebulaBlobs = [];
+        var count = isMobile ? 3 : 4;
+        for (var i = 0; i < count; i++) {
+            nebulaBlobs.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                r: (Math.random() * 220 + 160) * (isMobile ? 0.7 : 1),
+                color: NEBULA_COLORS[i % NEBULA_COLORS.length],
+                baseOpacity: Math.random() * 0.16 + 0.08,
+                phase: Math.random() * Math.PI * 2,
+                speedX: Math.random() * 0.06 + 0.02,
+                speedY: Math.random() * 0.06 + 0.02,
+                pulseSpeed: Math.random() * 0.004 + 0.002
+            });
+        }
+    }
+
     function initParticles() {
         var w = window.innerWidth, h = window.innerHeight;
         var area = w * h;
@@ -46,6 +76,8 @@
         for (var i = 0; i < count; i++) {
             var ci = Math.floor(Math.random() * STARDUST_COLORS.length);
             var col = STARDUST_COLORS[ci];
+            // 约 60% 粒子进入赤道光河，其余自由漂流
+            var inRing = Math.random() < 0.6;
             particles.push({
                 x: Math.random() * w,
                 y: Math.random() * h,
@@ -59,30 +91,71 @@
                 twinkleSpeed: Math.random() * 0.02 + 0.006,
                 driftX: Math.random() * 360,
                 driftY: Math.random() * 360,
-                driftSpeed: Math.random() * 0.12 + 0.04
+                driftSpeed: Math.random() * 0.12 + 0.04,
+                inRing: inRing,
+                // 光河参数：绕屏幕中心赤道流动
+                ringAngle: Math.random() * Math.PI * 2,
+                ringRadius: w * (0.22 + Math.random() * 0.18),
+                ringSpeed: (Math.random() * 0.6 + 0.3) * (Math.random() < 0.5 ? 1 : -1)
             });
             particles[i].baseSize = particles[i].size;
         }
     }
 
+    function drawNebula() {
+        // 星云丝：柔光团缓慢流动，sine 控制位置与透明度
+        for (var i = 0; i < nebulaBlobs.length; i++) {
+            var nb = nebulaBlobs[i];
+            nb.phase += nb.pulseSpeed;
+            nb.x += nb.speedX;
+            nb.y += nb.speedY;
+            var w = window.innerWidth, h = window.innerHeight;
+            // 环绕边界
+            if (nb.x > w + 300) nb.x = -300; if (nb.x < -300) nb.x = w + 300;
+            if (nb.y > h + 300) nb.y = -300; if (nb.y < -300) nb.y = h + 300;
+
+            var wobX = Math.sin(nb.phase) * 30;
+            var wobY = Math.cos(nb.phase * 0.8) * 24;
+            var pulse = 0.75 + 0.25 * Math.sin(nb.phase * 1.3);
+            var alpha = nb.baseOpacity * pulse;
+
+            ctx.globalCompositeOperation = 'lighter';
+            var g = ctx.createRadialGradient(nb.x + wobX, nb.y + wobY, 0, nb.x + wobX, nb.y + wobY, nb.r);
+            g.addColorStop(0, nb.color + alpha + ')');
+            g.addColorStop(0.55, nb.color + (alpha * 0.45) + ')');
+            g.addColorStop(1, nb.color + '0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(nb.x + wobX, nb.y + wobY, nb.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+        }
+    }
+
     function drawStars() {
         var w = window.innerWidth, h = window.innerHeight;
+        time += 0.016;
 
         // 光尾拖影技巧：半透明填充代替 clearRect，营造流动光轨
-        // 注意：不能每帧无限覆盖（会逐渐全黑），用稍高的透明度维持平衡
-        ctx.fillStyle = 'rgba(7, 7, 15, 0.16)';
+        ctx.fillStyle = 'rgba(7, 7, 15, 0.14)';
         ctx.fillRect(0, 0, w, h);
 
+        // 1. 流体星云丝（在粒子之下）
+        drawNebula();
+
+        // 2. 赤道光河中心（发光核心）
+        var cx0 = w / 2, cy0 = h / 2;
+
+        // 3. 粒子
         var mx = mouse.x, my = mouse.y;
         for (var i = 0; i < particles.length; i++) {
             var p = particles[i];
 
-            // 流体涡旋斥力：鼠标附近粒子被推开，产生漩涡
+            // 鼠标涡旋斥力：附近粒子被推开
             var dx = p.x - mx, dy = p.y - my;
             var dist = Math.sqrt(dx * dx + dy * dy);
             if (dist < 160 && dist > 0.5) {
                 var force = (1 - dist / 160) * 0.9;
-                // 径向斥力 + 切向漩涡分量
                 var fx = dx / dist * force * 1.6;
                 var fy = dy / dist * force * 1.6;
                 var swirl = force * 1.1;
@@ -90,14 +163,28 @@
                 p.vy += (fy + dx / dist * swirl) * 0.18;
             }
 
-            // 缓速回弹到自然流动（阻力 + 恢复）
-            p.vx *= 0.98;
-            p.vy *= 0.98;
-            p.vx += Math.sin((p.driftX + p.twinklePhase) * 0.01) * 0.006;
-            p.vy += Math.cos((p.driftY + p.twinklePhase) * 0.01) * 0.006;
-
-            p.x += p.vx;
-            p.y += p.vy;
+            if (p.inRing) {
+                // 赤道光河：绕屏幕中心画圆流动（像土星光环 / 发光的河）
+                p.ringAngle += p.ringSpeed * 0.016;
+                var ringCX = cx0 + Math.sin(time * 0.5 + p.twinklePhase) * 20;
+                var ringCY = cy0 + Math.cos(time * 0.4 + p.twinklePhase) * 14;
+                var tx = ringCX + Math.cos(p.ringAngle) * p.ringRadius;
+                var ty = ringCY + Math.sin(p.ringAngle) * p.ringRadius * 0.55;
+                // 弹性吸附到轨道
+                p.x += (tx - p.x) * 0.02;
+                p.y += (ty - p.y) * 0.02;
+                // 轨道上的切向流动（保持运动）
+                p.x += Math.cos(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.35;
+                p.y += Math.sin(p.ringAngle + Math.PI / 2) * p.ringSpeed * 0.35 * 0.55;
+            } else {
+                // 自由漂流粒子
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+                p.vx += Math.sin((p.driftX + p.twinklePhase) * 0.01) * 0.006;
+                p.vy += Math.cos((p.driftY + p.twinklePhase) * 0.01) * 0.006;
+                p.x += p.vx;
+                p.y += p.vy;
+            }
 
             // 环绕边界（无缝循环）
             if (p.x < -20) p.x = w + 20; if (p.x > w + 20) p.x = -20;
@@ -108,21 +195,24 @@
             var alpha = p.opacity * (0.6 + 0.4 * Math.sin(p.twinklePhase));
             if (alpha < 0.05) alpha = 0.05;
 
-            // 呼吸放大（缓慢）
+            // 呼吸放大
             p.size = p.baseSize * (1 + 0.4 * Math.sin(p.twinklePhase * 0.7));
 
+            // 发光绘制（lighter 叠加）
+            ctx.globalCompositeOperation = 'lighter';
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fillStyle = p.color + alpha + ')';
             ctx.fill();
 
-            // 光晕（大粒子，增强辉光）
+            // 光晕（大粒子）
             if (p.size > 1.5) {
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size * 2.8, 0, Math.PI * 2);
                 ctx.fillStyle = p.color + (alpha * 0.14) + ')';
                 ctx.fill();
             }
+            ctx.globalCompositeOperation = 'source-over';
         }
         animationId = requestAnimationFrame(drawStars);
     }
@@ -1021,17 +1111,33 @@
         return div;
     }
 
-    // ═══════ 3D 行星轨道引擎 (Orbital Solar System) ═══════
+    // ═══════ 360° 全向 Fibonacci 球面引擎 (Dyson Sphere / Atom Model) ═══════
     var orbit = {
         viewport: null, stage: null, items: [],
-        angle: 0,              // 全局轨道角（自转）
-        targetAngle: 0,        // 用户拖拽后的目标角
-        vel: 0,                // 角速度（惯性）
-        autoSpeed: 0.0012,     // 空闲自动旋转速度
-        dragging: false, lastX: 0,
-        mouseX: 0,             // 视口内光标 X（磁性/tilt 基准）
+        // 三维旋转角（绕 X / Y / Z 轴）
+        rotX: 0, rotY: 0, rotZ: 0,
+        targetRotX: 0, targetRotY: 0, targetRotZ: 0,
+        velX: 0, velY: 0, velZ: 0,
+        // 空闲自动翻滚速度（三轴各自独立，营造失重翻滚）
+        autoSpeedX: 0.0011, autoSpeedY: 0.0018, autoSpeedZ: 0.0005,
+        dragging: false, lastX: 0, lastY: 0,
+        mouseX: -9999, mouseY: -9999,
         raf: 0
     };
+
+    // Fibonacci 球面分布：N 个点均匀铺满球面
+    function fibonacciSphere(index, N) {
+        var phi = Math.acos(1 - 2 * (index + 0.5) / N);
+        var theta = Math.PI * (1 + Math.sqrt(5)) * (index + 0.5);
+        return {
+            phi: phi,
+            theta: theta,
+            // 返回单位球上的归一化方向 (x, y, z)
+            x: Math.cos(theta) * Math.sin(phi),
+            y: Math.cos(phi),
+            z: Math.sin(theta) * Math.sin(phi)
+        };
+    }
 
     function initOrbit() {
         orbit.viewport = document.getElementById('gallery-viewport');
@@ -1041,7 +1147,6 @@
         orbit.items = [];
         var grid = orbit.stage;
         grid.innerHTML = '';
-        // 切换到 3D 透视舞台
         grid.classList.add('orbit-stage');
 
         var totalPhotos = window.TOTAL_REAL_PHOTOS || 11;
@@ -1065,36 +1170,32 @@
         function buildOrbit() {
             galleryPhotos.sort(function(a, b) { return a.index - b.index; });
 
-            // 移动端缩小轨道半径与照片尺寸
             var mobile = window.innerWidth < 768;
-            var R = mobile ? 320 : 480;
-            var itemW = mobile ? 140 : 200;
-            var itemH = mobile ? 196 : 280;
+            // 动态半径：铺满整个屏幕，绝不拥挤
+            var R = Math.max(window.innerWidth, window.innerHeight) * 0.45;
+            R = Math.min(R, 920);
+            R = Math.max(R, mobile ? 300 : 560);
+            var itemW = mobile ? 130 : 190;
+            var itemH = mobile ? 182 : 266;
             orbit._R = R;
             orbit._itemW = itemW;
             orbit._itemH = itemH;
 
-            // 柱面轨道：绕中心 Y 轴均匀分布，X/Z 用 sin/cos，Y 发散起伏
             var count = galleryPhotos.length;
             galleryPhotos.forEach(function(photo, k) {
                 var item = createGalleryItem(photo.src, photo.index);
-                var baseAngle = (k / count) * Math.PI * 2;
-                // Y 起伏：两两错开，营造立体纵深
-                var yOff = Math.sin(k * 1.7) * 90;
+                var dir = fibonacciSphere(k, count);   // 单位球方向
                 item.style.width = itemW + 'px';
                 item.style.height = itemH + 'px';
                 item.style.left = (-itemW / 2) + 'px';
                 item.style.top = (-itemH / 2) + 'px';
-                item._baseAngle = baseAngle;
-                item._yOff = yOff;
-                item._baseW = itemW;
-                item._baseH = itemH;
+                item._dir = dir;
                 item.style.opacity = '0';
                 grid.appendChild(item);
                 orbit.items.push(item);
             });
 
-            // 中心发光源：两个头像作为轨道中心行星（光源自转）
+            // 中心光源：花花头像
             var centerWrap = document.createElement('div');
             centerWrap.className = 'orbit-center';
             centerWrap.innerHTML = '<img src="images/huahua.jpg" class="orbit-center-avatar" alt="花花">';
@@ -1106,106 +1207,132 @@
         }
     }
 
+    // 3D 旋转矩阵：把球面点 (x,y,z) 绕 X→Y→Z 轴旋转，返回旋转后的坐标
+    function rotatePoint(x, y, z, rx, ry, rz) {
+        // 绕 X
+        var y1 = y * Math.cos(rx) - z * Math.sin(rx);
+        var z1 = y * Math.sin(rx) + z * Math.cos(rx);
+        // 绕 Y
+        var x2 = x * Math.cos(ry) + z1 * Math.sin(ry);
+        var z2 = -x * Math.sin(ry) + z1 * Math.cos(ry);
+        // 绕 Z
+        var x3 = x2 * Math.cos(rz) - y1 * Math.sin(rz);
+        var y3 = x2 * Math.sin(rz) + y1 * Math.cos(rz);
+        return { x: x3, y: y3, z: z2 };
+    }
+
     function bindOrbitEvents() {
         var vp = orbit.viewport;
 
-        function start(x) { orbit.dragging = true; orbit.lastX = x; vp.classList.add('dragging'); }
-        function move(x) {
-            orbit.mouseX = x - vp.getBoundingClientRect().left;
+        function start(x, y) { orbit.dragging = true; orbit.lastX = x; orbit.lastY = y; vp.classList.add('dragging'); }
+        function move(x, y) {
+            var rect = vp.getBoundingClientRect();
+            orbit.mouseX = x - rect.left;
+            orbit.mouseY = y - rect.top;
             if (!orbit.dragging) return;
-            var dx = x - orbit.lastX;
-            orbit.lastX = x;
-            // 拖拽 δX → 角速度（左右滑动转轨道）
-            orbit.targetAngle += dx * 0.006;
-            orbit.vel = dx * 0.006;
+            var dx = x - orbit.lastX, dy = y - orbit.lastY;
+            orbit.lastX = x; orbit.lastY = y;
+            // 全向拖拽：dX → 绕 Y 轴，dY → 绕 X 轴
+            orbit.targetRotY += dx * 0.006;
+            orbit.targetRotX += dy * 0.006;
+            orbit.velY = dx * 0.006;
+            orbit.velX = dy * 0.006;
         }
         function end() { if (!orbit.dragging) return; orbit.dragging = false; vp.classList.remove('dragging'); }
 
-        vp.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX); });
-        window.addEventListener('mousemove', function(e) { move(e.clientX); });
+        vp.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX, e.clientY); });
+        window.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
         window.addEventListener('mouseup', end);
-        vp.addEventListener('touchstart', function(e) { e.preventDefault(); start(e.touches[0].clientX); }, { passive: false });
-        vp.addEventListener('touchmove', function(e) { e.preventDefault(); move(e.touches[0].clientX); }, { passive: false });
+        vp.addEventListener('touchstart', function(e) { e.preventDefault(); var t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: false });
+        vp.addEventListener('touchmove', function(e) { e.preventDefault(); var t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: false });
         vp.addEventListener('touchend', end);
         vp.addEventListener('touchcancel', end);
-        vp.addEventListener('mouseleave', function() { orbit.mouseX = -9999; });
+        vp.addEventListener('mouseleave', function() { orbit.mouseX = -9999; orbit.mouseY = -9999; });
 
-        // 点击拖拽不触发放大
         vp.addEventListener('click', function(e) {
-            if (Math.abs(orbit.vel) > 0.01) e.stopPropagation();
+            if (Math.abs(orbit.velX) + Math.abs(orbit.velY) > 0.01) e.stopPropagation();
         });
 
-        // 窗口缩放时按新尺寸重设轨道半径
+        // 窗口缩放：重算半径
         var resizeT = null;
         window.addEventListener('resize', function() {
             clearTimeout(resizeT);
             resizeT = setTimeout(function() {
                 var mobile = window.innerWidth < 768;
-                orbit._R = mobile ? 320 : 480;
-                orbit._itemW = mobile ? 140 : 200;
-                orbit._itemH = mobile ? 196 : 280;
+                var R = Math.max(window.innerWidth, window.innerHeight) * 0.45;
+                R = Math.min(R, 920);
+                R = Math.max(R, mobile ? 300 : 560);
+                orbit._R = R;
+                orbit._itemW = mobile ? 130 : 190;
+                orbit._itemH = mobile ? 182 : 266;
             }, 150);
         });
     }
 
     function orbitLoop() {
-        // 空闲自动旋转
+        // 空闲三维翻滚（三轴各自缓慢，失重 tumbling）
         if (!orbit.dragging) {
-            // 惯性减速：用户松开后角速度衰减回自动速度
-            orbit.vel *= 0.95;
-            if (Math.abs(orbit.vel) < 0.0006) orbit.vel = 0;
-            orbit.targetAngle += orbit.autoSpeed + orbit.vel;
+            orbit.velX *= 0.95; if (Math.abs(orbit.velX) < 0.0006) orbit.velX = 0;
+            orbit.velY *= 0.95; if (Math.abs(orbit.velY) < 0.0006) orbit.velY = 0;
+            orbit.velZ *= 0.95; if (Math.abs(orbit.velZ) < 0.0005) orbit.velZ = 0;
+            orbit.targetRotX += orbit.autoSpeedX + orbit.velX;
+            orbit.targetRotY += orbit.autoSpeedY + orbit.velY;
+            orbit.targetRotZ += orbit.autoSpeedZ + orbit.velZ;
         }
-        // 平滑跟随（Lerp）
-        orbit.angle += (orbit.targetAngle - orbit.angle) * 0.12;
+        // Lerp 平滑收敛
+        orbit.rotX += (orbit.targetRotX - orbit.rotX) * 0.12;
+        orbit.rotY += (orbit.targetRotY - orbit.rotY) * 0.12;
+        orbit.rotZ += (orbit.targetRotZ - orbit.rotZ) * 0.12;
 
         var cx = orbit.viewport.clientWidth / 2;
         var cy = orbit.viewport.clientHeight / 2;
         var items = orbit.items;
-        var R = orbit._R || 480;
+        var R = orbit._R || 700;
 
         for (var i = 0; i < items.length; i++) {
             var it = items[i];
-            var a = it._baseAngle + orbit.angle;
-            // 柱面坐标：X = R·sin, Z = R·cos（Z 表示离相机深度）
-            var z = Math.cos(a) * R;
-            var x = Math.sin(a) * R;
-            var y = it._yOff;
+            var dir = it._dir;
+            // 单位方向 * 半径，得到球面上的 3D 坐标
+            var rawX = dir.x * R, rawY = dir.y * R, rawZ = dir.z * R;
+            // 三维旋转（翻滚）
+            var p = rotatePoint(rawX, rawY, rawZ, orbit.rotX, orbit.rotY, orbit.rotZ);
+            var z = p.z, x = p.x, y = p.y;
 
-            // 深度排序：Z 大（前面）排上面
+            // 深度排序
             it.style.zIndex = Math.round(z + R);
 
-            // 景深：背后模糊 + 透明，前面清晰
-            var depth = (z + R) / (R * 2);   // 0(远) ~ 1(近)
-            var blurAmt = (1 - depth) * 2.4;
-            var opacity = 0.45 + depth * 0.55;
+            // 景深：背后模糊 + 透明
+            var depth = (z + R) / (R * 2);
+            var blurAmt = (1 - depth) * 3.2;
+            var opacity = 0.35 + depth * 0.65;
 
-            // 光源反射：面向中心（角度决定反射强度）
-            var facing = (Math.cos(a) + 1) / 2;   // 朝向相机时最亮
-            var glare = 0.18 + facing * 0.2;
+            // 相机距离越近越大（真实透视）
+            var persp = 1.2 / (1.2 - depth);          // 透视系数
+            var scale = (0.45 + depth * 0.75) * persp;
+            scale = Math.min(scale, 1.6);
 
-            // 屏幕投影：中心 + X 偏移（简化透视，Z 影响缩放）
-            var scale = 0.55 + depth * 0.55;
-            var screenX = cx + x * (0.75 + depth * 0.35);
-            var screenY = cy + y * scale - (1 - depth) * 60;
+            // 屏幕投影
+            var screenX = cx + x * (0.6 + depth * 0.55);
+            var screenY = cy + y * (0.6 + depth * 0.55) - (1 - depth) * 40;
 
-            // tilt 跟随鼠标（轻微）
-            var tiltRX = 0, tiltRY = 0;
-            var hov = Math.abs(orbit.mouseX - screenX);
-            if (hov < 160) {
-                tiltRY = (orbit.mouseX - screenX) / 160 * 10;
-            }
+            // 光照：面向相机（z 大 = 面向）时更亮
+            var facing = (z / R + 1) / 2;
+            var glare = 0.15 + facing * 0.25;
 
-            it.style.transform = 'translate3d(' + screenX.toFixed(1) + 'px,' + screenY.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ') rotateY(' + tiltRY.toFixed(1) + 'deg)';
+            // 广告牌：counter-rotation 让照片始终面向相机（绕 Y 然后绕 X）
+            // 基于点在相机空间的位置 (x, y, z)，旋转平面使其法线朝向 (0,0,1)
+            var distXY = Math.sqrt(x * x + z * z);
+            var billY = Math.atan2(x, z) * 180 / Math.PI;
+            var billX = -Math.atan2(y, Math.max(distXY, 0.001)) * 180 / Math.PI;
+
+            it.style.transform = 'translate3d(' + screenX.toFixed(1) + 'px,' + screenY.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ') rotateY(' + billY.toFixed(1) + 'deg) rotateX(' + billX.toFixed(1) + 'deg)';
             it.style.filter = 'blur(' + blurAmt.toFixed(2) + 'px)';
             it.style.opacity = opacity.toFixed(2);
-            // 反射高光：通过 box-shadow 模拟边缘受光
-            it.style.boxShadow = '0 0 ' + (glare * 120).toFixed(0) + 'px rgba(255,224,200,' + (glare * 0.5).toFixed(2) + '), inset 0 0 40px rgba(255,255,255,' + (glare * 0.35).toFixed(2) + ')';
-            // 存储角度供 hover 放大
+            it.style.boxShadow = '0 0 ' + (glare * 140).toFixed(0) + 'px rgba(255,224,200,' + (glare * 0.5).toFixed(2) + '), inset 0 0 40px rgba(255,255,255,' + (glare * 0.35).toFixed(2) + ')';
             it._depth = depth;
         }
 
-        // 中心行星（光源头）静止于轨道中心
+        // 中心行星固定（光源头）
         if (orbit.center) {
             orbit.center.style.transform = 'translate3d(' + cx.toFixed(1) + 'px,' + cy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(1)';
         }
@@ -1495,7 +1622,15 @@
     function saveEchoes() { try { localStorage.setItem('starlight-echoes', JSON.stringify(userEchoes)); } catch(e) {} }
 
     // ═══ 空间 HUD 回响信标（3D 漂浮）═══
-    var echoHUD = { stage: null, beacons: [], angle: 0, vel: 0, dragging: false, lastX: 0, raf: 0 };
+    var echoHUD = {
+        stage: null, beacons: [],
+        rotX: 0, rotY: 0, rotZ: 0,
+        targetRotX: 0, targetRotY: 0, targetRotZ: 0,
+        velX: 0, velY: 0, velZ: 0,
+        autoSpeedX: 0.0009, autoSpeedY: 0.0014, autoSpeedZ: 0.0004,
+        dragging: false, lastX: 0, lastY: 0,
+        raf: 0
+    };
 
     function createEchoBeacon(echo) {
         var beacon = document.createElement('div');
@@ -1513,14 +1648,12 @@
         if (!stage) return;
         stage.innerHTML = '';
         echoHUD.beacons = [];
-        for (var i = 0; i < echoesData.length; i++) {
+        var N = echoesData.length;
+        for (var i = 0; i < N; i++) {
             var beacon = createEchoBeacon(echoesData[i]);
-            // 环布：不同半径、相位、Y 高度，像环绕轨道的信标
-            var ring = (i % 4) + 1;                 // 1~4 层轨道
-            beacon._radius = 120 + ring * 60;       // 180~360px
-            beacon._baseAngle = (i / echoesData.length) * Math.PI * 2 + ring * 0.6;
-            beacon._yOff = (i % 3) * 60 - 60;       // -60 ~ 60 高度错落
-            beacon._ring = ring;
+            // Fibonacci 球面分布：信标均匀铺满小球面
+            beacon._dir = fibonacciSphere(i, N);
+            beacon._radius = 150 + (i % 3) * 40;   // 多层球壳
             stage.appendChild(beacon);
             echoHUD.beacons.push(beacon);
         }
@@ -1531,20 +1664,22 @@
     function bindEchoHUDEvents() {
         var stage = echoHUD.stage = document.getElementById('echo-hud-stage');
         if (!stage) return;
-        function start(x) { echoHUD.dragging = true; echoHUD.lastX = x; stage.classList.add('dragging'); }
-        function move(x) {
+        function start(x, y) { echoHUD.dragging = true; echoHUD.lastX = x; echoHUD.lastY = y; stage.classList.add('dragging'); }
+        function move(x, y) {
             if (!echoHUD.dragging) return;
-            var dx = x - echoHUD.lastX;
-            echoHUD.lastX = x;
-            echoHUD.angle += dx * 0.008;
-            echoHUD.vel = dx * 0.008;
+            var dx = x - echoHUD.lastX, dy = y - echoHUD.lastY;
+            echoHUD.lastX = x; echoHUD.lastY = y;
+            echoHUD.targetRotY += dx * 0.008;
+            echoHUD.targetRotX += dy * 0.008;
+            echoHUD.velY = dx * 0.008;
+            echoHUD.velX = dy * 0.008;
         }
         function end() { if (!echoHUD.dragging) return; echoHUD.dragging = false; stage.classList.remove('dragging'); }
-        stage.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX); });
-        window.addEventListener('mousemove', function(e) { move(e.clientX); });
+        stage.addEventListener('mousedown', function(e) { e.preventDefault(); start(e.clientX, e.clientY); });
+        window.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
         window.addEventListener('mouseup', end);
-        stage.addEventListener('touchstart', function(e) { e.preventDefault(); start(e.touches[0].clientX); }, { passive: false });
-        stage.addEventListener('touchmove', function(e) { e.preventDefault(); move(e.touches[0].clientX); }, { passive: false });
+        stage.addEventListener('touchstart', function(e) { e.preventDefault(); var t = e.touches[0]; start(t.clientX, t.clientY); }, { passive: false });
+        stage.addEventListener('touchmove', function(e) { e.preventDefault(); var t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: false });
         stage.addEventListener('touchend', end);
         stage.addEventListener('touchcancel', end);
     }
@@ -1553,24 +1688,37 @@
         var stage = echoHUD.stage;
         if (!stage) return;
         if (!echoHUD.dragging) {
-            echoHUD.vel *= 0.95;
-            if (Math.abs(echoHUD.vel) < 0.0008) echoHUD.vel = 0;
-            echoHUD.angle += 0.0018 + echoHUD.vel;   // 自动缓慢旋转
+            echoHUD.velX *= 0.95; if (Math.abs(echoHUD.velX) < 0.0007) echoHUD.velX = 0;
+            echoHUD.velY *= 0.95; if (Math.abs(echoHUD.velY) < 0.0007) echoHUD.velY = 0;
+            echoHUD.velZ *= 0.95; if (Math.abs(echoHUD.velZ) < 0.0006) echoHUD.velZ = 0;
+            echoHUD.targetRotX += echoHUD.autoSpeedX + echoHUD.velX;
+            echoHUD.targetRotY += echoHUD.autoSpeedY + echoHUD.velY;
+            echoHUD.targetRotZ += echoHUD.autoSpeedZ + echoHUD.velZ;
         }
+        echoHUD.rotX += (echoHUD.targetRotX - echoHUD.rotX) * 0.12;
+        echoHUD.rotY += (echoHUD.targetRotY - echoHUD.rotY) * 0.12;
+        echoHUD.rotZ += (echoHUD.targetRotZ - echoHUD.rotZ) * 0.12;
+
         var sw = stage.clientWidth, sh = stage.clientHeight;
         var cx = sw / 2, cy = sh / 2;
         for (var i = 0; i < echoHUD.beacons.length; i++) {
             var b = echoHUD.beacons[i];
-            var a = b._baseAngle + echoHUD.angle;
-            var z = Math.cos(a) * b._radius;
-            var x = Math.sin(a) * b._radius * 0.7;
-            var depth = (z + b._radius) / (b._radius * 2);
-            var scale = 0.7 + depth * 0.5;
-            var opacity = 0.3 + depth * 0.7;
-            var blur = (1 - depth) * 2;
-            var sy = cy + b._yOff * scale;
-            b.style.zIndex = Math.round(z + b._radius);
-            b.style.transform = 'translate3d(' + (cx + x).toFixed(1) + 'px,' + sy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ')';
+            var dir = b._dir;
+            var R = b._radius;
+            var p = rotatePoint(dir.x * R, dir.y * R, dir.z * R, echoHUD.rotX, echoHUD.rotY, echoHUD.rotZ);
+            var z = p.z, x = p.x, y = p.y;
+            var depth = (z + R) / (R * 2);
+            var scale = 0.6 + depth * 0.6;
+            var opacity = 0.25 + depth * 0.75;
+            var blur = (1 - depth) * 2.2;
+            // 广告牌：信标朝向相机
+            var distXY = Math.sqrt(x * x + z * z);
+            var billY = Math.atan2(x, z) * 180 / Math.PI;
+            var billX = -Math.atan2(y, Math.max(distXY, 0.001)) * 180 / Math.PI;
+            var sx = cx + x * (0.6 + depth * 0.5);
+            var sy = cy + y * (0.6 + depth * 0.5);
+            b.style.zIndex = Math.round(z + R);
+            b.style.transform = 'translate3d(' + sx.toFixed(1) + 'px,' + sy.toFixed(1) + 'px,0) translate(-50%,-50%) scale(' + scale.toFixed(2) + ') rotateY(' + billY.toFixed(1) + 'deg) rotateX(' + billX.toFixed(1) + 'deg)';
             b.style.opacity = opacity.toFixed(2);
             b.style.filter = 'blur(' + blur.toFixed(2) + 'px)';
         }

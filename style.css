@@ -202,7 +202,7 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
     border-bottom:1px solid rgba(255,255,255,.05);border-right:1px solid rgba(255,255,255,.05);
     background:rgba(255,255,255,.02);-webkit-backdrop-filter:blur(12px) saturate(120%);backdrop-filter:blur(12px) saturate(120%);
     box-shadow:0 30px 60px rgba(0,0,0,.12),inset 0 0 120px rgba(0,0,0,.4)}
-.echo-hud-stage{position:absolute;inset:0;perspective:1000px;cursor:grab}
+.echo-hud-stage{position:absolute;inset:0;perspective:1000px;cursor:grab;transform-style:preserve-3d}
 .echo-hud-stage.dragging{cursor:grabbing}
 .echo-hud-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.25em;color:rgba(255,209,220,.55);z-index:20;pointer-events:none;white-space:nowrap}
 
@@ -280,12 +280,33 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
     transform:translate3d(0,0,0);will-change:transform;
     z-index:1;perspective:1200px;
 }
+.orbit-stage{transform-style:preserve-3d}
 
-/* 轨道中央行星（光源头） */
+/* 轨道中央行星（光源头）—— 生命之心，心跳辉光 */
 .orbit-center{
     position:absolute;width:110px;height:110px;border-radius:50%;
     left:0;top:0;will-change:transform;z-index:500;
     pointer-events:none;
+}
+/* 心跳光晕：香槟金 + 柔粉，缓慢搏动 */
+.orbit-center::before{
+    content:'';position:absolute;inset:-40px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(255,209,220,.5) 0%,rgba(249,229,201,.28) 34%,transparent 66%);
+    animation:heartbeatGlow 3.2s ease-in-out infinite;
+    z-index:-1;
+}
+.orbit-center::after{
+    content:'';position:absolute;inset:-90px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(255,209,220,.22) 0%,rgba(249,229,201,.1) 40%,transparent 70%);
+    animation:heartbeatGlow 3.2s ease-in-out infinite .5s;
+    z-index:-2;
+}
+@keyframes heartbeatGlow{
+    0%,100%{transform:scale(1);opacity:.55}
+    14%{transform:scale(1.16);opacity:.95}
+    28%{transform:scale(1.02);opacity:.65}
+    42%{transform:scale(1.22);opacity:1}
+    70%{transform:scale(1.05);opacity:.7}
 }
 .orbit-center-avatar{
     width:100%;height:100%;border-radius:50%;object-fit:cover;
