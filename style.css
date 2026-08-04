@@ -5,11 +5,21 @@ body{background:#07070f;color:#e8e0d5;font-family:'PingFang SC','Helvetica Neue'
 a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.music-btn,.gate-btn,.echo-capsule{cursor:none!important}
 .grain-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1000}
 #starfield-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none!important}
-/* WebGL 宇宙流体背景 — 内容层最底（body 背景之上、星空画布之下） */
-.webgl-shader-bg{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;pointer-events:none!important;opacity:.9}
+/* 以太极光球 —— 柔和浪漫氛围背景（content 层最底） */
+.aurora-orb{
+    position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none!important;
+    z-index:0;opacity:.55;will-change:transform;
+}
+.orb-1{width:44vw;height:44vw;top:-12vh;left:-8vw;background:radial-gradient(circle,rgba(255,182,193,.9) 0%,rgba(255,182,193,0) 70%);animation:orbFloat1 26s ease-in-out infinite}
+.orb-2{width:40vw;height:40vw;bottom:-14vh;right:-10vw;background:radial-gradient(circle,rgba(186,216,255,.9) 0%,rgba(186,216,255,0) 70%);animation:orbFloat2 32s ease-in-out infinite}
+.orb-3{width:34vw;height:34vw;top:30vh;left:30vw;background:radial-gradient(circle,rgba(233,216,253,.9) 0%,rgba(233,216,253,0) 70%);animation:orbFloat3 38s ease-in-out infinite}
+.orb-4{width:28vw;height:28vw;top:55vh;right:18vw;background:radial-gradient(circle,rgba(255,228,225,.85) 0%,rgba(255,228,225,0) 70%);animation:orbFloat4 30s ease-in-out infinite}
+@keyframes orbFloat1{0%,100%{transform:translate3d(0,0,0) scale(1)}33%{transform:translate3d(6vw,4vh,0) scale(1.12)}66%{transform:translate3d(-4vw,7vh,0) scale(.94)}}
+@keyframes orbFloat2{0%,100%{transform:translate3d(0,0,0) scale(1)}40%{transform:translate3d(-7vw,-5vh,0) scale(1.08)}70%{transform:translate3d(3vw,-8vh,0) scale(.92)}}
+@keyframes orbFloat3{0%,100%{transform:translate3d(0,0,0) scale(1)}35%{transform:translate3d(5vw,-6vh,0) scale(1.15)}75%{transform:translate3d(-6vw,2vh,0) scale(.95)}}
+@keyframes orbFloat4{0%,100%{transform:translate3d(0,0,0) scale(1)}45%{transform:translate3d(-5vw,6vh,0) scale(1.1)}80%{transform:translate3d(4vw,3vh,0) scale(.9)}}
 .parallax-bg-layer,.parallax-mid-layer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none!important;z-index:0}
-.parallax-bg-layer{background:radial-gradient(ellipse at 50% 30%,rgba(30,20,60,0.5) 0%,transparent 60%),radial-gradient(ellipse at 80% 70%,rgba(60,30,50,0.3) 0%,transparent 50%)}
-.parallax-mid-layer{background:radial-gradient(ellipse at 20% 50%,rgba(40,30,70,0.4) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(50,25,40,0.25) 0%,transparent 45%)}
+/* 极光球已取代深色渐变，视差层保持透明仅作滚动位移装饰 */
 
 /* Loader */
 .preamble-loader{position:fixed;top:0;left:0;width:100%;height:100%;background:#050510;display:flex;align-items:center;justify-content:center;z-index:2000;transition:opacity .8s ease,visibility .8s ease}
@@ -83,34 +93,25 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
 .planet-wrapper{display:flex;flex-direction:column;align-items:center;gap:1.5rem;z-index:2;will-change:transform}
 .planet{width:120px;height:120px;border-radius:50%;position:relative;box-shadow:0 0 60px rgba(212,175,135,.35),0 0 120px rgba(180,150,210,.2),inset 0 -10px 30px rgba(0,0,0,.4);animation:breathe 4s ease-in-out infinite}
 .planet canvas,.planet-surface{border-radius:50%;overflow:hidden}
-/* Awwwards 头像 —— 全彩 + RGB 色差 + 流体缩放 + 辉光 */
+/* Awwwards 头像 —— 优雅玻璃质感，柔和光晕 */
 .avatar-img{
     position:absolute;inset:50% auto auto 50%;transform:translate3d(-50%,-50%,0);
     width:72%;height:72%;object-fit:cover;border-radius:50%;
-    transition:filter .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1),box-shadow .7s cubic-bezier(.16,1,.3,1);
-    z-index:3;pointer-events:none;will-change:transform,filter;
+    transition:transform .7s cubic-bezier(.16,1,.3,1),box-shadow .7s cubic-bezier(.16,1,.3,1);
+    z-index:3;pointer-events:none;will-change:transform;
 }
-/* RGB 色差叠加层：红偏移 + 青偏移，悬停时显现 */
-.avatar-planet::before,.avatar-planet .chromatic-split{
-    content:'';position:absolute;inset:0;border-radius:50%;z-index:2;pointer-events:none;
-    opacity:0;transition:opacity .45s ease;
-    background:
-        radial-gradient(circle at 30% 30%,rgba(255,0,80,.35) 0%,transparent 42%),
-        radial-gradient(circle at 70% 70%,rgba(0,240,255,.35) 0%,transparent 42%);
-    mix-blend-mode:screen;
-}
-.avatar-planet:hover .chromatic-split,.avatar-planet:hover::before{opacity:.85}
-/* 全彩 + 色差微动 */
 .avatar-planet:hover .avatar-img{
-    filter:brightness(1.06) contrast(1.04) saturate(1.15);
-    transform:translate3d(-50%,-50%,0) scale(1.09);
-    box-shadow:0 0 36px rgba(255,70,160,.5),0 0 90px rgba(0,220,255,.28),-6px 0 20px rgba(255,0,80,.3),6px 0 20px rgba(0,240,255,.3);
+    transform:translate3d(-50%,-50%,0) scale3d(1.05,1.05,1.05);
+    box-shadow:0 0 40px rgba(255,182,193,.35),0 0 90px rgba(186,216,255,.25);
 }
+/* 动态玻璃反光（glare）：随鼠标移动的高光扫过 */
 .avatar-planet::after{
     content:'';position:absolute;inset:0;border-radius:50%;z-index:4;pointer-events:none;
-    background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.28) 0%,transparent 38%);
-    mix-blend-mode:overlay;opacity:.5;
+    background:radial-gradient(circle at var(--glare-x,32%) var(--glare-y,28%),rgba(255,255,255,.5) 0%,rgba(255,255,255,.12) 32%,transparent 50%);
+    opacity:0;transition:opacity .5s ease;
 }
+.avatar-planet:hover::after{opacity:1}
+
 .planet-glow{position:absolute;top:-30%;left:-30%;width:160%;height:160%;border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(212,175,135,.25) 0%,rgba(180,150,210,.1) 35%,transparent 65%);filter:blur(25px);pointer-events:none;animation:auroraPulse 4s ease-in-out infinite;z-index:-1}
 .planet-ring-left,.planet-ring-right{position:absolute;border:1px solid rgba(212,175,135,.3);border-radius:50%;top:50%;left:50%;transform:translate3d(-50%,-50%,0) rotateX(75deg);pointer-events:none;will-change:transform}
 .planet-ring-left{width:165px;height:165px;box-shadow:0 0 20px rgba(212,175,135,.15),inset 0 0 20px rgba(212,175,135,.05)}
@@ -158,16 +159,16 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
 @keyframes rotateGears{from{transform:translate3d(-50%,0,0) rotate(0deg)}to{transform:translate3d(-50%,0,0) rotate(360deg)}}
 .chrono-display{display:flex;align-items:center;justify-content:center;gap:.8rem;z-index:2;margin:2rem 0;background:rgba(15,15,30,.4);border:.5px solid rgba(212,175,135,.2);border-radius:20px;padding:1.5rem 2rem}
 .chrono-card{display:flex;flex-direction:column;align-items:center;min-width:70px}
-.chrono-value{font-family:'Playfair Display',serif;font-size:2.8rem;font-weight:700;background:linear-gradient(135deg,#d4af87,#f0dbb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;display:inline-block;overflow:hidden}
+.chrono-value{font-family:'Cormorant Garamond','Playfair Display',serif;font-size:2.9rem;font-weight:300;letter-spacing:.08em;background:linear-gradient(135deg,#d4af87,#f0dbb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;display:inline-block;overflow:hidden}
 /* 老虎机数字滚动 */
 .chrono-roll{position:relative;display:inline-block;overflow:hidden;line-height:1}
-.chrono-roll span{position:absolute;left:0;top:0;width:100%;display:block;white-space:nowrap;
+.chrono-roll span{position:absolute;left:0;top:0;width:100%;display:block;white-space:nowrap;font-weight:300;letter-spacing:.08em;
     background:linear-gradient(135deg,#d4af87,#f0dbb0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .chrono-roll-out{animation:chronoOut .5s cubic-bezier(.4,0,.2,1) forwards}
 .chrono-roll-in{animation:chronoIn .5s cubic-bezier(.4,0,.2,1) forwards}
 @keyframes chronoOut{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}
 @keyframes chronoIn{0%{transform:translateY(100%);opacity:0}100%{transform:translateY(0);opacity:1}}
-.chrono-unit{font-size:.6rem;letter-spacing:.2em;color:rgba(180,150,200,.7);margin-top:.3rem}
+.chrono-unit{font-size:.6rem;letter-spacing:.28em;color:rgba(180,150,200,.75);margin-top:.4rem;font-weight:300}
 .chrono-sep{font-size:2.5rem;color:rgba(212,175,135,.4);margin-top:-.8rem}
 .chrono-detail{display:flex;gap:.6rem;font-size:.8rem;color:rgba(200,180,220,.7);letter-spacing:.1em;z-index:2;margin-bottom:1rem}
 .chrono-detail span span{color:#d4af87;font-weight:500}
@@ -248,33 +249,31 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
     z-index:1;
 }
 
-/* 单张照片 —— 全彩 + 玻璃态 + 磁性吸附 + RGB 色差 */
+/* 单张照片 —— 优雅玻璃质感 */
 .constellation-item{
     position:absolute;width:clamp(150px,18vw,260px);border-radius:16px;overflow:hidden;
     border:.5px solid rgba(255,255,255,.14);
-    opacity:.85;cursor:pointer;
+    opacity:.88;cursor:pointer;
     transform:translate3d(0,0,0);
     transition:opacity .6s cubic-bezier(.16,1,.3,1),clip-path .6s cubic-bezier(.16,1,.3,1),
-               box-shadow .6s cubic-bezier(.16,1,.3,1),filter .6s cubic-bezier(.16,1,.3,1);
+               box-shadow .6s cubic-bezier(.16,1,.3,1);
     will-change:transform;z-index:1;background:rgba(20,20,40,.4);
-    box-shadow:0 8px 30px rgba(0,0,0,.45);
+    box-shadow:0 8px 30px rgba(0,0,0,.35);
 }
-.constellation-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.16,1,.3,1);filter:saturate(1.1)}
+.constellation-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.16,1,.3,1)}
 .constellation-item:hover{
     opacity:1;z-index:10;
     clip-path:inset(0 0 0 0 round 16px);
-    box-shadow:0 24px 70px rgba(255,60,170,.4),0 0 50px rgba(0,220,255,.3),-8px 0 24px rgba(255,0,80,.25),8px 0 24px rgba(0,240,255,.25);
+    box-shadow:0 24px 60px rgba(255,182,193,.22),0 0 40px rgba(186,216,255,.15);
 }
-.constellation-item:hover img{transform:scale(1.06);filter:saturate(1.25) brightness(1.05)}
-/* RGB 色差伪元素叠加 */
+.constellation-item:hover img{transform:scale(1.05)}
+/* 玻璃反光：动态高光跟随鼠标（--glare-x/--glare-y 由 JS 注入） */
 .constellation-item::before{
     content:'';position:absolute;inset:0;z-index:2;pointer-events:none;border-radius:16px;
-    background:
-        radial-gradient(circle at 28% 30%,rgba(255,0,80,.28) 0%,transparent 40%),
-        radial-gradient(circle at 72% 68%,rgba(0,240,255,.28) 0%,transparent 40%);
-    mix-blend-mode:screen;opacity:0;transition:opacity .5s ease;
+    background:radial-gradient(circle at var(--glare-x,30%) var(--glare-y,28%),rgba(255,255,255,.4) 0%,rgba(255,255,255,.1) 32%,transparent 50%);
+    opacity:0;transition:opacity .5s ease;
 }
-.constellation-item:hover::before{opacity:.75}
+.constellation-item:hover::before{opacity:1}
 .constellation-item .const-frame{
     position:absolute;bottom:10px;left:10px;font-family:'Space Mono',monospace;
     font-size:.55rem;color:rgba(212,175,135,.7);letter-spacing:.15em;z-index:3;
@@ -349,25 +348,24 @@ a,button,.gallery-viewport,.constellation-item,.avatar-planet,.echo-launch-btn,.
 .bgm-toast.show{opacity:1;transform:translate3d(-50%,0,0) scale(1)}
 .bgm-toast.hide{opacity:0;transform:translate3d(-50%,10px,0) scale(.96)}
 
-/* 自定义混合模式光标 —— 发光空心圆 */
+/* 自定义光标 —— 优雅白色细环 */
 .custom-cursor{
     position:fixed;top:0;left:0;z-index:9999;pointer-events:none!important;
-    width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
-    mix-blend-mode:difference;will-change:transform;
-    transition:width .35s cubic-bezier(.16,1,.3,1),height .35s cubic-bezier(.16,1,.3,1),
-               margin .35s cubic-bezier(.16,1,.3,1),background .35s ease,border-color .35s ease;
+    width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;
+    will-change:transform;transition:width .4s cubic-bezier(.16,1,.3,1),height .4s cubic-bezier(.16,1,.3,1),
+               margin .4s cubic-bezier(.16,1,.3,1),background .4s ease;
 }
 .custom-cursor span{
     position:absolute;inset:0;border-radius:50%;
-    border:1.5px solid rgba(255,255,255,.92);
-    box-shadow:0 0 12px rgba(255,255,255,.5),inset 0 0 8px rgba(255,255,255,.25);
-    transition:transform .35s cubic-bezier(.16,1,.3,1);
+    border:1px solid rgba(255,255,255,.5);
+    transition:transform .4s cubic-bezier(.16,1,.3,1),border-color .4s ease;
 }
-/* 悬停可吸附元素：放大 + 中心实体 */
-.custom-cursor.magnetic{width:62px;height:62px;margin:-31px 0 0 -31px;background:rgba(255,255,255,.12);border-color:transparent}
-.custom-cursor.magnetic span{border-color:rgba(255,255,255,.7);transform:scale(.55)}
-/* 点击时收缩 */
-.custom-cursor.down span{transform:scale(.72)}
+/* 悬停可吸附元素：柔和放大 + 轻微毛玻璃背景 */
+.custom-cursor.magnetic{width:56px;height:56px;margin:-28px 0 0 -28px}
+.custom-cursor.magnetic span{border-color:rgba(255,255,255,.8);transform:scale(.82);
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+/* 点击时轻微收缩 */
+.custom-cursor.down span{transform:scale(.68)}
 
 /* Footer */
 .footer{text-align:center;padding:3rem;color:rgba(180,150,200,.4);font-size:.8rem;letter-spacing:.2em}

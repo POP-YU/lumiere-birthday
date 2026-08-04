@@ -1219,7 +1219,10 @@
             }
             var mdx = dxm / (Math.sqrt(dist2) || 1) * pull * 0.6;
             var mdy = dym / (Math.sqrt(dist2) || 1) * pull * 0.6;
-            it.style.transform = 'translate3d(' + mdx.toFixed(2) + 'px,' + mdy.toFixed(2) + 'px,0) scale(' + it._scale + ')';
+            // 组合磁性位移 + tilt 旋转（从 CSS 变量读取，拖拽与倾斜互不覆盖）
+            var trx = it.style.getPropertyValue('--tilt-rx') || '0deg';
+            var tryy = it.style.getPropertyValue('--tilt-ry') || '0deg';
+            it.style.transform = 'translate3d(' + mdx.toFixed(2) + 'px,' + mdy.toFixed(2) + 'px,0) scale(' + it._scale + ') perspective(1000px) rotateX(' + trx + ') rotateY(' + tryy + ')';
         }
 
         constellation.raf = requestAnimationFrame(constellationLoop);
@@ -1753,6 +1756,50 @@
     }, { passive: true });
 
     // ============ 自定义混合模式光标 ============
+    // ============ 3D 玻璃质感倾斜（Awwwards 式）============
+    // 用 CSS 变量驱动 tilt，避免与星象图拖拽 transform 冲突
+    function initGlassTilt() {
+        // 头像行星：直接应用倾斜
+        document.querySelectorAll('.avatar-planet').forEach(function(el) {
+            el.addEventListener('mousemove', function(e) {
+                var r = el.getBoundingClientRect();
+                var px = (e.clientX - r.left) / r.width;
+                var py = (e.clientY - r.top) / r.height;
+                var rx = (py - 0.5) * -12;
+                var ry = (px - 0.5) * 14;
+                el.style.setProperty('--glare-x', (px * 100).toFixed(1) + '%');
+                el.style.setProperty('--glare-y', (py * 100).toFixed(1) + '%');
+                el.style.transform = 'perspective(1000px) rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg) scale3d(1.02,1.02,1.02)';
+            });
+            el.addEventListener('mouseleave', function() {
+                el.style.transform = '';
+            });
+        });
+
+        // 画廊照片：记录 tilt 到 CSS 变量，拖拽循环每帧组合
+        var vp = document.getElementById('gallery-viewport');
+        if (vp) {
+            vp.addEventListener('mousemove', function(e) {
+                var item = e.target.closest('.constellation-item');
+                if (!item) return;
+                var r = item.getBoundingClientRect();
+                var px = (e.clientX - r.left) / r.width;
+                var py = (e.clientY - r.top) / r.height;
+                var rx = (py - 0.5) * -10;
+                var ry = (px - 0.5) * 12;
+                item.style.setProperty('--tilt-rx', rx.toFixed(2) + 'deg');
+                item.style.setProperty('--tilt-ry', ry.toFixed(2) + 'deg');
+                item.style.setProperty('--glare-x', (px * 100).toFixed(1) + '%');
+                item.style.setProperty('--glare-y', (py * 100).toFixed(1) + '%');
+            });
+            vp.addEventListener('mouseleave', function() {
+                var it = e && e.target;
+                var item = it && it.closest ? it.closest('.constellation-item') : null;
+                if (item) { item.style.setProperty('--tilt-rx', '0deg'); item.style.setProperty('--tilt-ry', '0deg'); }
+            });
+        }
+    }
+
     function initCustomCursor() {
         if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return; // 触屏设备跳过
         var cursor = document.getElementById('custom-cursor');
@@ -1787,167 +1834,11 @@
             requestAnimationFrame(loop);
         })();
     }
+    initGlassTilt();
     initCustomCursor();
 
     // ============ 初始设定 ============
     document.getElementById('title-name').textContent = GF_NAME;
     document.getElementById('name-label').textContent = GF_NAME;
 
-    // ═══════════════ WebGL 宇宙流体 / 极光背景 ═══════════════
-    function initWebGLShaderBg() {
-        var canvas = document.getElementById('webgl-shader-bg');
-        if (!canvas) return;
-        var gl = canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' }) ||
-                 canvas.getContext('experimental-webgl', { alpha: false, preserveDrawingBuffer: true });
-        if (!gl) return;
-
-        function resizeGL() {
-            var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-            canvas.width = Math.round(window.innerWidth * dpr);
-            canvas.height = Math.round(window.innerHeight * dpr);
-            gl.viewport(0, 0, canvas.width, canvas.height);
-        }
-        resizeGL();
-
-        // ── 顶点着色器：全屏三角形 ──
-        var VS = [
-            'attribute vec2 a_pos;',
-            'void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }'
-        ].join('\n');
-
-        // ── 片元着色器：多彩宇宙流体 / 极光 ──
-        // 深紫 × 生物发光青 × 热粉的 FBM 噪声场，鼠标拖拽搅动，时间流动
-        var FS = [
-            'precision mediump float;',
-            'uniform vec2 u_res;',
-            'uniform vec2 u_mouse;',   // 归一化 0~1，鼠标位置
-            'uniform float u_time;',
-            '',
-            'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }',
-            'float noise(vec2 p){',
-            '    vec2 i = floor(p), f = fract(p);',
-            '    vec2 u = f*f*(3.0-2.0*f);',
-            '    return mix(mix(hash(i+vec2(0.0,0.0)), hash(i+vec2(1.0,0.0)), u.x),',
-            '               mix(hash(i+vec2(0.0,1.0)), hash(i+vec2(1.0,1.0)), u.x), u.y);',
-            '}',
-            'float fbm(vec2 p){',
-            '    float v = 0.0, a = 0.5;',
-            '    mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);',
-            '    for(int i = 0; i < 5; i++){ v += a * noise(p); p = rot * p * 2.0 + 5.2; a *= 0.5; }',
-            '    return v;',
-            '}',
-            'void main(){',
-            '    vec2 uv = gl_FragCoord.xy / u_res;',
-            '    vec2 p = (gl_FragCoord.xy * 2.0 - u_res) / min(u_res.x, u_res.y);',
-            '',
-            '    // 鼠标扰动：把流体往光标方向拽，形成漩涡',
-            '    vec2 m = u_mouse * 2.0 - 1.0;',
-            '    vec2 q = vec2(fbm(p + vec2(0.0, 0.1)), fbm(p + vec2(5.2, 1.3)));',
-            '    vec2 r = vec2(fbm(p + q * 1.5 + m * 0.35 + vec2(1.7, 9.2) + u_time * 0.045),',
-            '                fbm(p + q * 1.5 + m * 0.35 + vec2(8.3, 2.8) + u_time * 0.04));',
-            '    float f = fbm(p + r * 1.4);',
-            '',
-            '    // 三色通道分离（微色差 + 多彩混合）',
-            '    float rA = fbm(p + r * 1.6 + 0.3);',
-            '    float gA = fbm(p + r * 1.6);',
-            '    float bA = fbm(p + r * 1.6 - 0.3);',
-            '',
-            '    // 深紫 / 生物青 / 热粉 调色板',
-            '    vec3 deepPurple = vec3(0.30, 0.06, 0.52);',
-            '    vec3 biolumCyan = vec3(0.12, 0.86, 0.88);',
-            '    vec3 hotPink    = vec3(1.00, 0.20, 0.62);',
-            '    vec3 midnight   = vec3(0.02, 0.01, 0.06);',
-            '',
-            '    vec3 col = midnight;',
-            '    col += deepPurple * (0.5 + 0.5 * rA) * 1.3;',
-            '    col += biolumCyan * pow(clamp(gA, 0.0, 1.0), 1.8) * 1.25;',
-            '    col += hotPink * pow(clamp(bA, 0.0, 1.0), 2.0) * 0.9;',
-            '',
-            '    // 鼠标光晕辉光',
-            '    float glow = 0.7 / (0.25 + length(uv - u_mouse) * 3.0);',
-            '    col += vec3(0.35, 0.5, 0.9) * glow * 0.05;',
-            '',
-            '    // 暗角 + 柔和包裹',
-            '    float vig = 1.0 - length(uv - 0.5) * 0.45;',
-            '    col *= clamp(vig, 0.35, 1.0);',
-            '',
-            '    gl_FragColor = vec4(col, 1.0);',
-            '}'
-        ].join('\n');
-
-        function compile(type, src) {
-            var sh = gl.createShader(type);
-            gl.shaderSource(sh, src);
-            gl.compileShader(sh);
-            if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-                console.error('[WEBGL] shader error:', gl.getShaderInfoLog(sh));
-                gl.deleteShader(sh);
-                return null;
-            }
-            return sh;
-        }
-        var vs = compile(gl.VERTEX_SHADER, VS);
-        var fs = compile(gl.FRAGMENT_SHADER, FS);
-        if (!vs || !fs) return;
-
-        var prog = gl.createProgram();
-        gl.attachShader(prog, vs);
-        gl.attachShader(prog, fs);
-        gl.linkProgram(prog);
-        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-            console.error('[WEBGL] link error:', gl.getProgramInfoLog(prog));
-            return;
-        }
-        gl.useProgram(prog);
-
-        // 全屏三角形缓冲
-        var buf = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
-        var loc = gl.getAttribLocation(prog, 'a_pos');
-        gl.enableVertexAttribArray(loc);
-        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-        var uRes = gl.getUniformLocation(prog, 'u_res');
-        var uMouse = gl.getUniformLocation(prog, 'u_mouse');
-        var uTime = gl.getUniformLocation(prog, 'u_time');
-
-        // 平滑的鼠标位置（lerp）
-        var mx = 0.5, my = 0.5, tmx = 0.5, tmy = 0.5;
-        var startTime = (window.performance && performance.now) ? performance.now() : Date.now();
-
-        // 全局鼠标监听（包含画廊拖拽，让流体跟随）
-        window.addEventListener('mousemove', function(e) {
-            tmx = e.clientX / window.innerWidth;
-            tmy = 1.0 - (e.clientY / window.innerHeight);
-        });
-        window.addEventListener('touchmove', function(e) {
-            var t = e.touches[0];
-            tmx = t.clientX / window.innerWidth;
-            tmy = 1.0 - (t.clientY / window.innerHeight);
-        }, { passive: true });
-
-        var glRaf = 0;
-        function renderGL() {
-            var now = (window.performance && performance.now) ? performance.now() : Date.now();
-            var t = (now - startTime) / 1000;
-            mx += (tmx - mx) * 0.035;
-            my += (tmy - my) * 0.035;
-
-            gl.uniform2f(uRes, canvas.width, canvas.height);
-            gl.uniform2f(uMouse, mx, my);
-            gl.uniform1f(uTime, t);
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
-            glRaf = requestAnimationFrame(renderGL);
-        }
-        renderGL();
-
-        window.addEventListener('resize', resizeGL);
-    }
-    // 延迟到主内容就绪后初始化（放在 document load 时确保 canvas 布局完成）
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initWebGLShaderBg);
-    } else {
-        initWebGLShaderBg();
-    }
 })();
