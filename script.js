@@ -12,79 +12,115 @@
     //   ServerChan https://sctapi.ftqq.com/<SENDKEY>.send  (payload 字段为 title + desp)
     var WEBHOOK_URL = 'https://enoa6f6r4m58l.x.pipedream.net/'; // 测试用 RequestBin，之后可替换为正式通道
 
-    // ============ 星空粒子系统 (超轻量优化) ============
+    // ============ 星尘粒子引擎 (Interactive Stardust Physics) ============
+    // 500-800 发光粒子 · 香槟金/粉/白三色 · 鼠标涡旋斥力 · 光尾拖影
     var canvas = document.getElementById('starfield-canvas');
     var ctx = canvas.getContext('2d');
     var particles = [], mouse = { x: -1000, y: -1000 }, animationId;
     var isMobile = window.innerWidth < 768;
-    var starFrameSkip = 0, starFrameInterval = isMobile ? 3 : 2;
+    var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+
+    // 三色调色板：香槟金 / 柔粉 / 星光白
+    var STARDUST_COLORS = [
+        { r: 249, g: 229, b: 201 },  // #F9E5C9 Champagne Gold
+        { r: 255, g: 209, b: 220 },  // #FFD1DC Soft Pastel Pink
+        { r: 255, g: 248, b: 240 }   // Starlight White
+    ];
 
     function resizeCanvas() {
-        // 适配 Retina/高分屏：按 devicePixelRatio 缩放画布物理像素
-        var dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.round(window.innerWidth * dpr);
-        canvas.height = Math.round(window.innerHeight * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+        canvas.width = Math.round(window.innerWidth * DPR);
+        canvas.height = Math.round(window.innerHeight * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
         initParticles();
     }
     function initParticles() {
         var w = window.innerWidth, h = window.innerHeight;
         var area = w * h;
-        var density = isMobile ? 0.000018 : 0.000045;
+        // 桌面 ~700，移动端降一半保 60fps
+        var density = isMobile ? 0.00009 : 0.00042;
         var count = Math.floor(area * density);
-        count = Math.min(count, isMobile ? 60 : 140);
+        count = Math.min(count, isMobile ? 320 : 700);
+        count = Math.max(count, isMobile ? 120 : 320);
         particles = [];
         for (var i = 0; i < count; i++) {
+            var ci = Math.floor(Math.random() * STARDUST_COLORS.length);
+            var col = STARDUST_COLORS[ci];
             particles.push({
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: Math.random() * 1.6 + 0.3,
-                baseX: 0, baseY: 0,
-                speed: Math.random() * 0.02 + 0.005,
-                opacity: Math.random() * 0.6 + 0.3,
-                twinkle: Math.random() < 0.12,
+                vx: (Math.random() - 0.5) * 0.22,
+                vy: (Math.random() - 0.5) * 0.22,
+                size: Math.random() * 2.4 + 0.6,
+                baseSize: 0,
+                color: 'rgba(' + col.r + ',' + col.g + ',' + col.b + ',',
+                opacity: Math.random() * 0.75 + 0.45,
                 twinklePhase: Math.random() * Math.PI * 2,
-                twinkleSpeed: Math.random() * 0.015 + 0.004
+                twinkleSpeed: Math.random() * 0.02 + 0.006,
+                driftX: Math.random() * 360,
+                driftY: Math.random() * 360,
+                driftSpeed: Math.random() * 0.12 + 0.04
             });
-        }
-        for (var j = 0; j < particles.length; j++) {
-            particles[j].baseX = particles[j].x;
-            particles[j].baseY = particles[j].y;
+            particles[i].baseSize = particles[i].size;
         }
     }
+
     function drawStars() {
-        starFrameSkip++;
-        if (starFrameSkip % starFrameInterval !== 0) { animationId = requestAnimationFrame(drawStars); return; }
         var w = window.innerWidth, h = window.innerHeight;
-        ctx.clearRect(0, 0, w, h);
+
+        // 光尾拖影技巧：半透明填充代替 clearRect，营造流动光轨
+        // 注意：不能每帧无限覆盖（会逐渐全黑），用稍高的透明度维持平衡
+        ctx.fillStyle = 'rgba(7, 7, 15, 0.16)';
+        ctx.fillRect(0, 0, w, h);
+
         var mx = mouse.x, my = mouse.y;
         for (var i = 0; i < particles.length; i++) {
             var p = particles[i];
-            var dx = mx - p.x, dy = my - p.y;
+
+            // 流体涡旋斥力：鼠标附近粒子被推开，产生漩涡
+            var dx = p.x - mx, dy = p.y - my;
             var dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 120) {
-                var force = (1 - dist / 120) * 0.4;
-                p.x += dx * force * 0.01;
-                p.y += dy * force * 0.01;
+            if (dist < 160 && dist > 0.5) {
+                var force = (1 - dist / 160) * 0.9;
+                // 径向斥力 + 切向漩涡分量
+                var fx = dx / dist * force * 1.6;
+                var fy = dy / dist * force * 1.6;
+                var swirl = force * 1.1;
+                p.vx += (fx - dy / dist * swirl) * 0.18;
+                p.vy += (fy + dx / dist * swirl) * 0.18;
             }
-            p.x += (p.baseX - p.x) * 0.01;
-            p.y += (p.baseY - p.y) * 0.01;
-            p.baseX += p.speed * 0.1;
-            if (p.baseX > w + 20) p.baseX = -20;
-            if (p.baseX < -20) p.baseX = w + 20;
-            var alpha = p.opacity;
-            if (p.twinkle) {
-                p.twinklePhase += p.twinkleSpeed;
-                alpha = p.opacity * (0.5 + 0.5 * Math.sin(p.twinklePhase));
-            }
+
+            // 缓速回弹到自然流动（阻力 + 恢复）
+            p.vx *= 0.98;
+            p.vy *= 0.98;
+            p.vx += Math.sin((p.driftX + p.twinklePhase) * 0.01) * 0.006;
+            p.vy += Math.cos((p.driftY + p.twinklePhase) * 0.01) * 0.006;
+
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // 环绕边界（无缝循环）
+            if (p.x < -20) p.x = w + 20; if (p.x > w + 20) p.x = -20;
+            if (p.y < -20) p.y = h + 20; if (p.y > h + 20) p.y = -20;
+
+            // 闪烁
+            p.twinklePhase += p.twinkleSpeed;
+            var alpha = p.opacity * (0.6 + 0.4 * Math.sin(p.twinklePhase));
+            if (alpha < 0.05) alpha = 0.05;
+
+            // 呼吸放大（缓慢）
+            p.size = p.baseSize * (1 + 0.4 * Math.sin(p.twinklePhase * 0.7));
+
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(212,175,135,' + alpha + ')';
+            ctx.fillStyle = p.color + alpha + ')';
             ctx.fill();
-            if (p.size > 1.2 && p.twinkle) {
+
+            // 光晕（大粒子，增强辉光）
+            if (p.size > 1.5) {
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(212,175,135,' + (alpha * 0.08) + ')';
+                ctx.arc(p.x, p.y, p.size * 2.8, 0, Math.PI * 2);
+                ctx.fillStyle = p.color + (alpha * 0.14) + ')';
                 ctx.fill();
             }
         }
@@ -92,7 +128,6 @@
     }
     window.addEventListener('resize', function() {
         isMobile = window.innerWidth < 768;
-        starFrameInterval = isMobile ? 3 : 2;
         resizeCanvas();
     });
     window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -1780,7 +1815,8 @@
         var vp = document.getElementById('gallery-viewport');
         if (vp) {
             vp.addEventListener('mousemove', function(e) {
-                var item = e.target.closest('.constellation-item');
+                var el = e.target;
+                var item = el && typeof el.closest === 'function' ? el.closest('.constellation-item') : null;
                 if (!item) return;
                 var r = item.getBoundingClientRect();
                 var px = (e.clientX - r.left) / r.width;
@@ -1809,10 +1845,11 @@
 
         window.addEventListener('mousemove', function(e) {
             tx = e.clientX; ty = e.clientY;
-            // 磁性吸附：靠近头像/画廊照片时放大
+            // 磁性吸附：靠近头像/画廊照片时放大（el 可能是非 Element，需判 closest）
             var el = e.target;
-            var snapEl = el && (el.closest('.avatar-img') || el.closest('.constellation-item') ||
-                                el.closest('.avatar-planet'));
+            var snapEl = el && typeof el.closest === 'function' &&
+                (el.closest('.avatar-img') || el.closest('.constellation-item') ||
+                 el.closest('.avatar-planet'));
             var cls = 'magnetic';
             if (snapEl) {
                 var r = snapEl.getBoundingClientRect();
