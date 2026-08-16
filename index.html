@@ -1,226 +1,114 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#07070f">
-    <meta name="description" content="我为你保存了一段时间，在这片属于我们的星河里，每一颗星辰都在为你闪烁。">
-    <meta property="og:title" content="To 花花：专属星河宇宙">
-    <meta property="og:description" content="失重宇宙中的恋爱计时与记忆档案馆">
-    <meta property="og:type" content="website">
-    <!-- og:image 可替换为专用朋友圈封面图（建议 500×500 以上、https 直链） -->
-    <meta property="og:image" content="https://pop-yu.github.io/lumiere-birthday/images/1.jpg">
-    <title>To 花花：专属星河宇宙</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Inter:wght@200;300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700&family=Noto+Serif+SC:wght@300;400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0a14">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="献给花花的私人星河：一段被认真保存的时间、一册持续生长的回忆。">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://pop-yu.github.io/lumiere-birthday/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="To 花花 · 一座为你点亮的星河">
+  <meta property="og:description" content="一段被认真保存的时间，一册持续生长的回忆。">
+  <meta property="og:url" content="https://pop-yu.github.io/lumiere-birthday/">
+  <meta property="og:image" content="https://pop-yu.github.io/lumiere-birthday/images/1.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="To 花花 · 一座为你点亮的星河">
+  <meta name="twitter:description" content="一段被认真保存的时间，一册持续生长的回忆。">
+  <meta name="twitter:image" content="https://pop-yu.github.io/lumiere-birthday/images/1.jpg">
+  <title>To 花花 · 一座为你点亮的星河</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=DM+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"To 花花 · 一座为你点亮的星河","description":"献给花花的私人生日星河与记忆档案。","inLanguage":"zh-CN"}</script>
 </head>
 <body>
-    <div class="grain-overlay"></div>
-    <canvas id="starfield-canvas"></canvas>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <div class="page-noise" aria-hidden="true"></div>
+  <div class="star-field" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 
-    <!-- 极光氛围层：柔和径向渐变，纯 GPU 合成 -->
-    <div class="aurora-bg" aria-hidden="true"></div>
-    <!-- 静态星光层（填补低粒子数的氛围） -->
-    <div class="static-stars" aria-hidden="true"></div>
+  <header class="site-header" data-header>
+    <a class="wordmark" href="#top" aria-label="返回顶部"><span class="wordmark-mark">✦</span><span>H / H</span></a>
+    <nav aria-label="主导航">
+      <a href="#time">时间</a><a href="#letters">回响</a><a href="#archive">档案</a>
+    </nav>
+    <button class="sound-toggle" type="button" data-sound aria-pressed="false" aria-label="开启环境音"><span aria-hidden="true">◌</span><span class="sound-label">SOUND OFF</span></button>
+  </header>
 
-    <!-- 视差层 -->
-    <div class="parallax-bg-layer" id="parallax-bg"></div>
-    <div class="parallax-mid-layer" id="parallax-mid"></div>
-
-    <!-- 加载器 -->
-    <div id="preamble-loader" class="preamble-loader">
-        <div class="loader-content">
-            <div class="loader-orbit">
-                <svg viewBox="0 0 100 100">
-                    <circle class="ring-outer" cx="50" cy="50" r="42" fill="none" stroke="rgba(212,175,135,0.15)" stroke-width="0.5"/>
-                    <circle class="ring-inner" cx="50" cy="50" r="28" fill="none" stroke="rgba(212,175,135,0.3)" stroke-width="0.5" stroke-dasharray="6 4"/>
-                    <circle class="ring-core" cx="50" cy="50" r="12" fill="none" stroke="rgba(212,175,135,0.5)" stroke-width="0.6"/>
-                </svg>
-                <div class="stellar-dots">
-                    <span class="stellar-dot"></span>
-                    <span class="stellar-dot"></span>
-                    <span class="stellar-dot"></span>
-                    <span class="stellar-dot"></span>
-                </div>
-            </div>
-            <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="loader-fill"></div>
-            </div>
-            <p class="loader-text" id="loader-text">CALIBRATING STELLAR COORDINATES</p>
-            <p class="loader-sub">Initializing cosmic gateway · <span id="loader-pct">00</span>%</p>
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span></span> PRIVATE CONSTELLATION / 2026</p>
+        <p class="hero-kicker">给那个让平凡日子<br>有了光的人</p>
+        <h1 id="hero-title">Happy Birthday <em>花花</em></h1>
+        <p class="hero-description">我想把喜欢写得具体一点：它不是一颗短暂划过的流星，而是此后每个夜晚，都还在为你亮着的坐标。</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#time">开启这一段时间 <span aria-hidden="true">↘</span></a>
+          <button class="text-button" type="button" data-letter>打开今夜的信 <span aria-hidden="true">✦</span></button>
         </div>
-    </div>
+      </div>
+      <div class="orbital-composition reveal" aria-label="我们的双星轨道">
+        <div class="orbit orbit-a" aria-hidden="true"></div><div class="orbit orbit-b" aria-hidden="true"></div><div class="orbit orbit-c" aria-hidden="true"></div>
+        <figure class="portrait portrait-him"><img src="https://pop-yu.github.io/lumiere-birthday/images/bubu.jpg" alt="HIM" fetchpriority="high" width="480" height="640"><figcaption>HIM <span>01</span></figcaption></figure>
+        <figure class="portrait portrait-her"><img src="https://pop-yu.github.io/lumiere-birthday/images/huahua.jpg" alt="花花" fetchpriority="high" width="480" height="640"><figcaption>花花 <span>02</span></figcaption></figure>
+        <p class="orbit-note">TWO LIGHTS,<br>ONE ORBIT</p>
+        <span class="orbital-spark spark-one" aria-hidden="true">✦</span><span class="orbital-spark spark-two" aria-hidden="true">✦</span>
+      </div>
+      <a class="scroll-cue" href="#time"><span>SCROLL TO REMEMBER</span><i aria-hidden="true"></i></a>
+    </section>
 
-    <!-- 开启宇宙按钮 -->
-    <div id="universe-gate" class="universe-gate hidden">
-        <div class="gate-aurora"></div>
-        <div class="gate-rings">
-            <div class="gate-ring ring-r1"></div>
-            <div class="gate-ring ring-r2"></div>
-            <div class="gate-ring ring-r3"></div>
+    <section class="time-section section" id="time" aria-labelledby="time-title">
+      <div class="section-intro reveal">
+        <p class="index">01 / THE TIME WE KEEP</p>
+        <h2 id="time-title">不是倒数，<br><em>是向你靠近。</em></h2>
+        <p>从 2026 年 1 月 11 日起，时间有了一个特别的单位：与你有关的每一天。</p>
+      </div>
+      <div class="chronograph reveal" aria-label="相识时间计数器" aria-live="polite">
+        <div class="chrono-top"><span>LOVE CHRONOGRAPH</span><span data-date-label>SINCE 2026.01.11</span></div>
+        <div class="chrono-grid">
+          <div><strong data-count="years">00</strong><span>YEARS</span></div><div><strong data-count="months">00</strong><span>MONTHS</span></div><div><strong data-count="days">00</strong><span>DAYS</span></div>
         </div>
-        <button id="gate-btn" class="gate-btn">
-            <span class="gate-btn-glow"></span>
-            <span class="gate-btn-border"></span>
-            <span class="gate-btn-text">开 启 花 花 的 星 河 时 空</span>
-            <span class="gate-btn-sub">Enter Cosmic Gateway</span>
-        </button>
-        <p class="gate-hint">Tap to unfold the universe</p>
-    </div>
+        <div class="chrono-footer"><span><b data-count="hours">00</b> HOURS</span><i>·</i><span><b data-count="minutes">00</b> MINUTES</span><i>·</i><span><b data-count="seconds">00</b> SECONDS</span><span class="pulse-dot" aria-hidden="true"></span></div>
+      </div>
+      <div class="time-whisper reveal"><span>TIME DOESN'T PASS.</span><span>IT BECOMES US.</span></div>
+    </section>
 
-    <!-- 音乐胶囊 · 黑胶唱片（固定在 main-content 之外，避免被滚动 transform 影响） -->
-    <div class="music-capsule" id="music-capsule">
-        <button class="music-btn glass-card" id="music-btn" aria-label="音乐播放" aria-pressed="false">
-            <span class="vinyl-disc" aria-hidden="true">
-                <span class="vinyl-ring"></span>
-                <span class="vinyl-label"><span class="vinyl-hole"></span></span>
-            </span>
-        </button>
-        <span class="music-tooltip" id="music-tooltip">COSMIC WAVES</span>
-        <audio id="bgm-audio" loop preload="none" src="music/music.mp3"></audio>
-    </div>
+    <section class="letters-section section" id="letters" aria-labelledby="letters-title">
+      <div class="section-heading-row reveal"><div><p class="index">02 / SIGNALS WE LEFT</p><h2 id="letters-title">散落在星轨上的<br><em>小小证词。</em></h2></div><p>不必宏大。那些被记住的瞬间，本身就已经在发光。</p></div>
+      <ol class="signal-list" data-signals aria-label="记忆回响"></ol>
+      <div class="letter-cta reveal"><p>还有一句想留给未来的你。</p><button class="button button-outline" type="button" data-letter>写进今晚的星河 <span aria-hidden="true">↗</span></button></div>
+    </section>
 
-    <!-- 主内容 -->
-    <main id="main-content" class="main-content hidden">
-        <!-- Hero -->
-        <section id="hero" class="hero" data-parallax="0.15">
-            <div class="planets-stage" id="planets-stage">
-                <div class="planet-wrapper left-planet" id="left-planet-wrapper">
-                    <div class="planet avatar-planet" id="planet-left">
-                        <img src="images/bubu.jpg" class="avatar-img" alt="HIM">
-                        <div class="planet-surface left-surface"></div>
-                        <div class="planet-glow left-glow"></div>
-                        <div class="planet-ring-left"></div>
-                    </div>
-                    <span class="planet-label">HIM</span>
-                </div>
-                <div class="orbit-svg-container">
-                    <svg viewBox="0 0 600 200" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="orbitGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(212,175,135,0.1)"/><stop offset="25%" stop-color="rgba(212,175,135,0.6)"/><stop offset="50%" stop-color="rgba(255,220,180,0.8)"/><stop offset="75%" stop-color="rgba(180,150,210,0.5)"/><stop offset="100%" stop-color="rgba(180,150,210,0.1)"/></linearGradient></defs><ellipse cx="300" cy="130" rx="270" ry="55" fill="none" stroke="url(#orbitGrad)" stroke-width="0.8" stroke-dasharray="4 8"/><ellipse cx="300" cy="130" rx="220" ry="35" fill="none" stroke="rgba(212,175,135,0.25)" stroke-width="0.5" stroke-dasharray="2 10"/></svg>
-                </div>
-                <div class="planet-wrapper right-planet" id="right-planet-wrapper">
-                    <div class="planet avatar-planet" id="planet-right">
-                        <img src="images/huahua.jpg" class="avatar-img" alt="花花">
-                        <div class="planet-surface right-surface"></div>
-                        <div class="planet-glow right-glow"></div>
-                        <div class="planet-ring-right"></div>
-                    </div>
-                    <span class="planet-label" id="name-label">花花</span>
-                </div>
-            </div>
-            <div class="hero-text">
-                <p class="hero-sub">FOR THE GIRL WHO MADE MY WORLD BRIGHTER</p>
-                <h1 class="hero-title"><span class="title-line">Happy Birthday</span><span class="title-name" id="title-name">花花</span></h1>
-                <p class="hero-desc">我为你保存了一段时间，在这片属于我们的星河里，每一颗星辰都在为你闪烁。</p>
-                <div class="scroll-hint"><span class="scroll-arrow"></span><span>Explore Our Universe</span></div>
-            </div>
-        </section>
+    <section class="archive-section section" id="archive" aria-labelledby="archive-title">
+      <div class="archive-top reveal"><div><p class="index">03 / MEMORY ARCHIVE</p><h2 id="archive-title">把所有美好，<br><em>收进同一片宇宙。</em></h2></div><p>每一帧都不是过去式。点击一张照片，让它重新开始说话。</p></div>
+      <div class="gallery" data-gallery aria-label="记忆相册"></div>
+    </section>
 
-        <!-- 时光罗盘 -->
-        <section id="chrono" class="chrono-section" data-parallax="0.08">
-            <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
-            <h2 class="section-heading">Love Chronograph</h2>
-            <p class="section-sub">精密如腕表机芯，记录我们共度的每一刻</p>
-            <div class="chrono-container glass-card">
-                <svg class="chrono-gears" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet"><defs><radialGradient id="gearGrad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(212,175,135,0.08)"/><stop offset="100%" stop-color="rgba(212,175,135,0.01)"/></radialGradient></defs><circle cx="250" cy="250" r="220" fill="none" stroke="rgba(212,175,135,0.15)" stroke-width="0.6"/><circle cx="250" cy="250" r="190" fill="none" stroke="rgba(212,175,135,0.1)" stroke-width="0.4" stroke-dasharray="3 7"/><circle cx="250" cy="250" r="70" fill="url(#gearGrad)" stroke="rgba(212,175,135,0.2)" stroke-width="0.5"/><circle cx="250" cy="250" r="30" fill="none" stroke="rgba(212,175,135,0.3)" stroke-width="0.4"/><circle cx="250" cy="250" r="8" fill="rgba(212,175,135,0.4)"/></svg>
-                <div class="chrono-display">
-                    <div class="chrono-card"><span class="chrono-value" id="c-years">00</span><span class="chrono-unit">YEARS</span></div>
-                    <span class="chrono-sep">:</span>
-                    <div class="chrono-card"><span class="chrono-value" id="c-months">00</span><span class="chrono-unit">MONTHS</span></div>
-                    <span class="chrono-sep">:</span>
-                    <div class="chrono-card"><span class="chrono-value" id="c-days">00</span><span class="chrono-unit">DAYS</span></div>
-                </div>
-                <div class="chrono-detail" id="chrono-detail-text"><span><span id="c-hours">00</span> HOURS</span><span class="dot">·</span><span><span id="c-minutes">00</span> MINUTES</span><span class="dot">·</span><span><span id="c-seconds">00</span> SECONDS</span></div>
-                <p class="chrono-since" id="chrono-since">Since 2026.01.11</p>
-            </div>
-        </section>
+    <section class="closing section" aria-labelledby="closing-title">
+      <p class="eyebrow reveal"><span></span> ENDLESS, NOT FINISHED</p>
+      <h2 class="reveal" id="closing-title">愿你每一岁，<br>都比星光更<strong>明亮</strong>。</h2>
+      <p class="reveal">生日快乐，花花。谢谢你来到我的宇宙，也谢谢你让它有了中心。</p>
+      <button class="button button-primary reveal" type="button" data-letter>再读一遍，写给你 <span aria-hidden="true">✦</span></button>
+    </section>
+  </main>
 
-        <!-- Starlight Echoes 星轨回响 -->
-        <section id="echoes" class="echoes-section" data-parallax="0.06">
-            <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">✦</span><span class="divider-line"></span></div>
-            <h2 class="section-heading">Starlight Echoes</h2>
-            <p class="section-sub">超维星轨情感回响 · 每一条都是永恒的记忆胶囊</p>
-            <button id="echo-launch-btn" class="echo-launch-btn">
-                <span class="echo-btn-glow"></span>
-                <span class="echo-btn-text">+ 发射心声到星轨</span>
-                <span class="echo-btn-sub">Leave an Echo</span>
-            </button>
-            <!-- 星轨回响 · 纵向时间轴（左/右对称分布） -->
-            <div class="echo-axis" aria-hidden="true"><span></span></div>
-            <div class="echo-timeline" id="echo-timeline"></div>
-        </section>
+  <footer><span>MADE WITH STARLIGHT / FOR HUAHUA</span><span>© <span data-year></span> H / H</span></footer>
 
-        <!-- 记忆相册 -->
-        <section id="gallery" class="gallery-section" data-parallax="0.12">
-            <div class="section-divider"><span class="divider-line"></span><span class="divider-icon">◆</span><span class="divider-line"></span></div>
-            <h2 class="section-heading">Memory Archive</h2>
-            <p class="section-sub">失重宇宙中，我们的每一帧回忆</p>
-            <div class="gallery-viewport" id="gallery-viewport">
-                <div class="constellation-canvas" id="constellation-canvas"></div>
-            </div>
-        </section>
+  <dialog class="letter-dialog" data-dialog aria-labelledby="letter-title">
+    <button class="dialog-close" type="button" data-close aria-label="关闭信件">×</button>
+    <div class="dialog-star" aria-hidden="true">✦</div>
+    <p class="eyebrow"><span></span> A NOTE FOR TONIGHT</p>
+    <h2 id="letter-title">给花花</h2>
+    <div class="letter-body"><p>我希望你知道：被爱从来不是要变成谁期待的样子。</p><p>你只要像你自己那样，去笑，去发光，去拥有所有值得拥有的好事。然后在某个普通的晚上想起，我一直都在，为你鼓掌。</p><p>生日快乐。今天、明天，和往后的每一年。</p></div>
+    <p class="letter-signature">— 你宇宙里的同行者</p>
+  </dialog>
 
-        <footer class="footer"><p>Made with starlight · For My Love</p></footer>
-    </main>
-
-    <!-- 记忆维度沉浸展厅 Portal -->
-    <div id="portal-overlay" class="portal-overlay">
-        <div class="portal-bg" id="portal-bg"></div>
-        <div class="portal-stage" id="portal-stage">
-            <div class="portal-image-frame">
-                <img id="portal-img" src="" alt="">
-                <div class="portal-image-scan"></div>
-            </div>
-            <div class="portal-text-panel">
-                <div class="portal-meta" id="portal-meta"></div>
-                <div class="portal-poem" id="portal-poem"></div>
-                <button id="portal-return-btn" class="portal-return-btn">
-                    <span class="portal-btn-ring"></span>
-                    <span>返回星河轨道</span>
-                    <span class="portal-btn-sub">Return to Orbit</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 星轨回响输入 Modal -->
-    <div id="echo-modal-overlay" class="echo-modal-overlay">
-        <div class="echo-modal glass-card">
-            <div class="echo-modal-header">
-                <span class="echo-modal-star">✦</span>
-                <h3>发射心声到星轨</h3>
-                <button id="echo-modal-close" class="echo-modal-close">✕</button>
-            </div>
-            <div class="echo-modal-body">
-                <div class="echo-field">
-                    <label>你的时空坐标</label>
-                    <input type="text" id="echo-author" placeholder="例如：未来的他 / 平行宇宙的旅人" maxlength="24">
-                </div>
-                <div class="echo-field">
-                    <label>回响内容</label>
-                    <textarea id="echo-message" placeholder="写下你想永久刻入星河的话语..." maxlength="280" rows="4"></textarea>
-                    <span class="echo-char-count"><span id="echo-count">0</span>/280</span>
-                </div>
-            </div>
-            <div class="echo-modal-footer">
-                <button id="echo-submit-btn" class="echo-submit-btn">
-                    <span class="echo-submit-glow"></span>
-                    <span class="echo-btn-text">✦ 发射入轨 ✦</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 发射粒子动画层 -->
-    <canvas id="echo-particle-canvas" class="echo-particle-canvas"></canvas>
-
-    <!-- 灯箱（保留兼容） -->
-    <div class="lightbox" id="lightbox">
-        <div class="lightbox-bg" id="lightbox-bg"></div>
-        <div class="lightbox-content"><img id="lightbox-img" src="" alt=""><button class="lightbox-close" id="lightbox-close">✕</button></div>
-    </div>
-
-    <script src="script.js"></script>
+  <dialog class="lightbox" data-lightbox aria-label="查看照片"><button class="dialog-close" type="button" data-lightbox-close aria-label="关闭照片">×</button><img data-lightbox-image src="" alt=""><p data-lightbox-caption></p></dialog>
+  <audio data-audio loop preload="none" src="music/music.mp3"></audio>
+  <script src="script.js" defer></script>
 </body>
 </html>
+
