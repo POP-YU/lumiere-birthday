@@ -2,113 +2,120 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b0a14">
-  <meta name="color-scheme" content="dark">
-  <meta name="description" content="献给花花的私人星河：一段被认真保存的时间、一册持续生长的回忆。">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#05060b">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="献给花花的一场私人星空大赏：时间、心声与回忆，在同一条轨道上发光。">
   <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://pop-yu.github.io/lumiere-birthday/">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="zh_CN">
-  <meta property="og:title" content="To 花花 · 一座为你点亮的星河">
-  <meta property="og:description" content="一段被认真保存的时间，一册持续生长的回忆。">
+  <meta property="og:title" content="花花宇宙 · Celestial Archive">
+  <meta property="og:description" content="今夜，整片宇宙只为一个人亮起。">
   <meta property="og:url" content="https://pop-yu.github.io/lumiere-birthday/">
   <meta property="og:image" content="https://pop-yu.github.io/lumiere-birthday/images/1.jpg">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="To 花花 · 一座为你点亮的星河">
-  <meta name="twitter:description" content="一段被认真保存的时间，一册持续生长的回忆。">
+  <meta name="twitter:title" content="花花宇宙 · Celestial Archive">
+  <meta name="twitter:description" content="今夜，整片宇宙只为一个人亮起。">
   <meta name="twitter:image" content="https://pop-yu.github.io/lumiere-birthday/images/1.jpg">
-  <title>To 花花 · 一座为你点亮的星河</title>
+  <title>花花宇宙 · Celestial Archive</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500;1,600&family=DM+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260817">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"To 花花 · 一座为你点亮的星河","description":"献给花花的私人生日星河与记忆档案。","inLanguage":"zh-CN"}</script>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,ital,wght@6..96,400;6..96,500;6..96,600;6..96,700&family=DM+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=20260817b">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"花花宇宙 · Celestial Archive","description":"献给花花的私人生日星空大赏。","inLanguage":"zh-CN"}</script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
-  <div class="page-noise" aria-hidden="true"></div>
-  <div class="star-field" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <canvas id="cosmos" aria-hidden="true"></canvas>
+  <div class="film-grain" aria-hidden="true"></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
 
-  <header class="site-header" data-header>
-    <a class="wordmark" href="#top" aria-label="返回顶部"><span class="wordmark-mark">✦</span><span>H / H</span></a>
-    <nav aria-label="主导航">
-      <a href="#time">时间</a><a href="#letters">回响</a><a href="#archive">档案</a>
-    </nav>
-    <button class="sound-toggle" type="button" data-sound aria-pressed="false" aria-label="开启环境音"><span aria-hidden="true">◌</span><span class="sound-label">SOUND OFF</span></button>
+  <header class="topbar" data-header>
+    <a class="monogram" href="#hero" aria-label="返回首页"><span>H</span><i>✦</i><span>H</span></a>
+    <nav aria-label="主导航"><a href="#manifesto">序章</a><a href="#chronicle">时间</a><a href="#signals">心声</a><a href="#memories">档案</a></nav>
+    <button class="sound" type="button" data-sound aria-pressed="false" aria-label="开启环境音"><i></i><span>SOUND</span></button>
   </header>
 
   <main id="main">
-    <section class="hero" id="top" aria-labelledby="hero-title">
+    <section class="hero" id="hero" aria-labelledby="hero-title">
+      <div class="hero-coordinate hero-coordinate-left reveal"><span>31°13′ N</span><span>121°28′ E</span></div>
+      <div class="hero-coordinate hero-coordinate-right reveal"><span>PRIVATE CELESTIAL EVENT</span><span>NO. 1017 — 2026</span></div>
+      <p class="hero-giant" aria-hidden="true"><span>HUA</span><span>HUA</span></p>
+      <div class="celestial-stage reveal" data-parallax>
+        <div class="halo halo-1"></div><div class="halo halo-2"></div><div class="halo halo-3"></div><div class="halo halo-4"></div>
+        <div class="eclipse">
+          <div class="eclipse-atmosphere"></div>
+          <figure class="binary binary-a"><img src="https://pop-yu.github.io/lumiere-birthday/images/bubu.jpg" alt="HIM" width="480" height="640" fetchpriority="high"><figcaption>HIM / 01</figcaption></figure>
+          <figure class="binary binary-b"><img src="https://pop-yu.github.io/lumiere-birthday/images/huahua.jpg" alt="花花" width="480" height="640" fetchpriority="high"><figcaption>HUAHUA / 02</figcaption></figure>
+          <span class="eclipse-core" aria-hidden="true"></span>
+        </div>
+        <span class="orbit-label label-one">BORN TO GLOW</span><span class="orbit-label label-two">TWO LIGHTS / ONE ORBIT</span>
+      </div>
       <div class="hero-copy reveal">
-        <p class="eyebrow"><span></span> PRIVATE CONSTELLATION / 2026</p>
-        <p class="hero-kicker">给那个让平凡日子<br>有了光的人</p>
-        <h1 id="hero-title">Happy Birthday <em>花花</em></h1>
-        <p class="hero-description">我想把喜欢写得具体一点：它不是一颗短暂划过的流星，而是此后每个夜晚，都还在为你亮着的坐标。</p>
-        <div class="hero-actions">
-          <a class="button button-primary" href="#time">开启这一段时间 <span aria-hidden="true">↘</span></a>
-          <button class="text-button" type="button" data-letter>打开今夜的信 <span aria-hidden="true">✦</span></button>
-        </div>
+        <p class="overline"><span>✦</span> CELESTIAL ARCHIVE</p>
+        <h1 id="hero-title"><span>Happy</span><span>Birthday</span><em>花花</em></h1>
+        <p>今夜，整片宇宙只做一件事：<br>把所有星光都交到你手里。</p>
       </div>
-      <div class="orbital-composition reveal" aria-label="我们的双星轨道">
-        <div class="orbit orbit-a" aria-hidden="true"></div><div class="orbit orbit-b" aria-hidden="true"></div><div class="orbit orbit-c" aria-hidden="true"></div>
-        <figure class="portrait portrait-him"><img src="https://pop-yu.github.io/lumiere-birthday/images/bubu.jpg" alt="HIM" fetchpriority="high" width="480" height="640"><figcaption>HIM <span>01</span></figcaption></figure>
-        <figure class="portrait portrait-her"><img src="https://pop-yu.github.io/lumiere-birthday/images/huahua.jpg" alt="花花" fetchpriority="high" width="480" height="640"><figcaption>花花 <span>02</span></figcaption></figure>
-        <p class="orbit-note">TWO LIGHTS,<br>ONE ORBIT</p>
-        <span class="orbital-spark spark-one" aria-hidden="true">✦</span><span class="orbital-spark spark-two" aria-hidden="true">✦</span>
-      </div>
-      <a class="scroll-cue" href="#time"><span>SCROLL TO REMEMBER</span><i aria-hidden="true"></i></a>
+      <div class="hero-bottom reveal"><button type="button" class="enter-link" data-letter>开启今夜的信 <span>↗</span></button><a href="#manifesto">向下进入星河 <i></i></a></div>
     </section>
 
-    <section class="time-section section" id="time" aria-labelledby="time-title">
-      <div class="section-intro reveal">
-        <p class="index">01 / THE TIME WE KEEP</p>
-        <h2 id="time-title">不是倒数，<br><em>是向你靠近。</em></h2>
-        <p>从 2026 年 1 月 11 日起，时间有了一个特别的单位：与你有关的每一天。</p>
+    <div class="ticker" aria-hidden="true"><div><span>HAPPY BIRTHDAY HUAHUA</span><i>✦</i><span>YOU ARE THE BRIGHTEST COORDINATE</span><i>✦</i><span>HAPPY BIRTHDAY HUAHUA</span><i>✦</i><span>YOU ARE THE BRIGHTEST COORDINATE</span><i>✦</i></div></div>
+
+    <section class="manifesto" id="manifesto" aria-labelledby="manifesto-title">
+      <div class="manifesto-meta reveal"><span>00 / PROLOGUE</span><span>A PRIVATE UNIVERSE<br>BUILT FOR ONE PERSON</span></div>
+      <h2 id="manifesto-title" class="reveal">宇宙用了很久，<br>才把你送到<strong>我眼前。</strong></h2>
+      <div class="manifesto-orbit" aria-hidden="true"><i></i><span>✦</span></div>
+      <p class="manifesto-copy reveal">所以我想认真地保存这一刻——不是把它做成一张普通的生日卡片，而是为你建一座可以反复抵达的星河。</p>
+      <figure class="manifesto-photo photo-left reveal"><img src="https://pop-yu.github.io/lumiere-birthday/images/3.jpg" alt="记忆照片：被保存的晴天" loading="lazy" decoding="async"><figcaption>ARCHIVE / 03</figcaption></figure>
+      <figure class="manifesto-photo photo-right reveal"><img src="https://pop-yu.github.io/lumiere-birthday/images/7.jpg" alt="记忆照片：同一片天空" loading="lazy" decoding="async"><figcaption>ARCHIVE / 07</figcaption></figure>
+    </section>
+
+    <section class="chronicle" id="chronicle" aria-labelledby="chronicle-title">
+      <div class="section-mark reveal"><span>01</span><p>THE TIME<br>WE KEEP</p></div>
+      <div class="chronicle-title reveal"><p class="overline"><span>✦</span> LOVE CHRONOGRAPH</p><h2 id="chronicle-title">不是倒数。<br><em>是向你靠近。</em></h2></div>
+      <div class="chrono-shell reveal" aria-label="相识时间计数器" aria-live="polite">
+        <div class="dial" aria-hidden="true"><i></i><i></i><i></i><i></i><span>✦</span></div>
+        <div class="chrono-major"><div><strong data-count="years">00</strong><span>YEARS</span></div><b>:</b><div><strong data-count="months">00</strong><span>MONTHS</span></div><b>:</b><div><strong data-count="days">00</strong><span>DAYS</span></div></div>
+        <div class="chrono-minor"><span><b data-count="hours">00</b> HRS</span><i>·</i><span><b data-count="minutes">00</b> MIN</span><i>·</i><span><b data-count="seconds">00</b> SEC</span></div>
+        <div class="chrono-stamp"><span>SINCE</span><strong>2026.01.11</strong><i></i></div>
       </div>
-      <div class="chronograph reveal" aria-label="相识时间计数器" aria-live="polite">
-        <div class="chrono-top"><span>LOVE CHRONOGRAPH</span><span data-date-label>SINCE 2026.01.11</span></div>
-        <div class="chrono-grid">
-          <div><strong data-count="years">00</strong><span>YEARS</span></div><div><strong data-count="months">00</strong><span>MONTHS</span></div><div><strong data-count="days">00</strong><span>DAYS</span></div>
-        </div>
-        <div class="chrono-footer"><span><b data-count="hours">00</b> HOURS</span><i>·</i><span><b data-count="minutes">00</b> MINUTES</span><i>·</i><span><b data-count="seconds">00</b> SECONDS</span><span class="pulse-dot" aria-hidden="true"></span></div>
-      </div>
-      <div class="time-whisper reveal"><span>TIME DOESN'T PASS.</span><span>IT BECOMES US.</span></div>
+      <p class="chronicle-note reveal">时间并没有经过我们。<br>时间正在慢慢变成我们。</p>
     </section>
 
-    <section class="letters-section section" id="letters" aria-labelledby="letters-title">
-      <div class="section-heading-row reveal"><div><p class="index">02 / SIGNALS WE LEFT</p><h2 id="letters-title">散落在星轨上的<br><em>小小证词。</em></h2></div><p>不必宏大。那些被记住的瞬间，本身就已经在发光。</p></div>
-      <ol class="signal-list" data-signals aria-label="记忆回响"></ol>
-      <div class="letter-cta reveal"><p>还有一句想留给未来的你。</p><button class="button button-outline" type="button" data-letter>写进今晚的星河 <span aria-hidden="true">↗</span></button></div>
+    <section class="signals" id="signals" aria-labelledby="signals-title">
+      <div class="signals-head reveal"><div><p class="overline"><span>✦</span> STELLAR TRANSMISSIONS</p><h2 id="signals-title">来自星轨的<br><em>八次回响。</em></h2></div><p>那些看起来微小的瞬间，<br>后来都成了宇宙的证据。</p></div>
+      <div class="signal-orbit" data-signals></div>
+      <div class="signals-footer reveal"><span>END OF TRANSMISSION / NOT END OF STORY</span><button type="button" data-letter>接收隐藏频段 <i>↗</i></button></div>
     </section>
 
-    <section class="archive-section section" id="archive" aria-labelledby="archive-title">
-      <div class="archive-top reveal"><div><p class="index">03 / MEMORY ARCHIVE</p><h2 id="archive-title">把所有美好，<br><em>收进同一片宇宙。</em></h2></div><p>每一帧都不是过去式。点击一张照片，让它重新开始说话。</p></div>
-      <div class="gallery" data-gallery aria-label="记忆相册"></div>
+    <section class="memories" id="memories" aria-labelledby="memories-title">
+      <div class="memories-head reveal"><p class="overline"><span>✦</span> MEMORY CONSTELLATION</p><h2 id="memories-title">每一帧，<br>都是一颗<strong>星。</strong></h2><p>点击照片，重新抵达那一刻。</p></div>
+      <div class="memory-sky" data-gallery aria-label="记忆相册"></div>
     </section>
 
-    <section class="closing section" aria-labelledby="closing-title">
-      <p class="eyebrow reveal"><span></span> ENDLESS, NOT FINISHED</p>
-      <h2 class="reveal" id="closing-title">愿你每一岁，<br>都比星光更<strong>明亮</strong>。</h2>
-      <p class="reveal">生日快乐，花花。谢谢你来到我的宇宙，也谢谢你让它有了中心。</p>
-      <button class="button button-primary reveal" type="button" data-letter>再读一遍，写给你 <span aria-hidden="true">✦</span></button>
+    <section class="finale" aria-labelledby="finale-title">
+      <div class="finale-halo" aria-hidden="true"><span>✦</span></div>
+      <p class="overline reveal"><span>✦</span> ONE LAST WISH</p>
+      <h2 id="finale-title" class="reveal">愿你每一岁，<br>都比星光<strong>更明亮。</strong></h2>
+      <p class="reveal">生日快乐，花花。<br>谢谢你来到我的宇宙，也谢谢你让它有了中心。</p>
+      <button class="finale-button reveal" type="button" data-letter><span>读一封写给你的信</span><i>↗</i></button>
     </section>
   </main>
 
-  <footer><span>MADE WITH STARLIGHT / FOR HUAHUA</span><span>© <span data-year></span> H / H</span></footer>
+  <footer><span>CELESTIAL ARCHIVE / FOR HUAHUA</span><span>MADE WITH STARLIGHT</span><span>© <b data-year></b> H ✦ H</span></footer>
 
   <dialog class="letter-dialog" data-dialog aria-labelledby="letter-title">
     <button class="dialog-close" type="button" data-close aria-label="关闭信件">×</button>
-    <div class="dialog-star" aria-hidden="true">✦</div>
-    <p class="eyebrow"><span></span> A NOTE FOR TONIGHT</p>
+    <p class="overline"><span>✦</span> PRIVATE TRANSMISSION</p>
     <h2 id="letter-title">给花花</h2>
-    <div class="letter-body"><p>我希望你知道：被爱从来不是要变成谁期待的样子。</p><p>你只要像你自己那样，去笑，去发光，去拥有所有值得拥有的好事。然后在某个普通的晚上想起，我一直都在，为你鼓掌。</p><p>生日快乐。今天、明天，和往后的每一年。</p></div>
-    <p class="letter-signature">— 你宇宙里的同行者</p>
+    <div class="letter-copy"><p>我希望你知道：被爱从来不是要变成谁期待的样子。</p><p>你只要像你自己那样，去笑，去发光，去拥有所有值得拥有的好事。然后在某个普通的晚上想起，我一直都在，为你鼓掌。</p><p>生日快乐。今天、明天，和往后的每一年。</p></div>
+    <p class="signature">— 你宇宙里的同行者</p>
   </dialog>
 
   <dialog class="lightbox" data-lightbox aria-label="查看照片"><button class="dialog-close" type="button" data-lightbox-close aria-label="关闭照片">×</button><img data-lightbox-image src="" alt=""><p data-lightbox-caption></p></dialog>
   <audio data-audio loop preload="none" src="music/music.mp3"></audio>
-  <script src="script.js?v=20260817" defer></script>
+  <script src="script.js?v=20260817b" defer></script>
 </body>
 </html>
 
