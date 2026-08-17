@@ -218,6 +218,7 @@
     let animation = 0;
     let stars = [];
     let comet = null;
+    let galaxyVisible = false;
 
     const makeStar = () => ({
       x: Math.random(), y: Math.random(), r: Math.random() * 1.15 + .15,
@@ -226,7 +227,7 @@
       hue: Math.random() > .82 ? (Math.random() > .5 ? 'gold' : 'blue') : 'white'
     });
     const resize = () => {
-      width = window.innerWidth; height = window.innerHeight; ratio = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth; height = window.innerHeight; ratio = Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
       canvas.style.width = `${width}px`; canvas.style.height = `${height}px`; context.setTransform(ratio, 0, 0, ratio, 0, 0);
       stars = Array.from({ length: Math.min(190, Math.max(80, Math.round(width * height / 9000))) }, makeStar);
@@ -248,14 +249,429 @@
         if (comet.life > 95 || comet.x < -140) comet = null;
       }
       frame++;
-      if (!reducedMotion && !document.hidden) animation = requestAnimationFrame(draw);
+      if (!reducedMotion && !document.hidden && !galaxyVisible) animation = requestAnimationFrame(draw);
     };
     resize(); draw();
     window.addEventListener('resize', resize, { passive: true });
     document.addEventListener('visibilitychange', () => {
       cancelAnimationFrame(animation);
-      if (!document.hidden && !reducedMotion) animation = requestAnimationFrame(draw);
+      if (!document.hidden && !reducedMotion && !galaxyVisible) animation = requestAnimationFrame(draw);
     });
+    const galaxy = $('[data-galaxy]');
+    if (galaxy && 'IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+        galaxyVisible = entry.isIntersecting;
+        cancelAnimationFrame(animation);
+        animation = 0;
+        if (!galaxyVisible && !document.hidden && !reducedMotion) animation = requestAnimationFrame(draw);
+      }), { threshold: .08 });
+      observer.observe(galaxy);
+    }
+  }
+
+  function setupGalaxyExplorer() {
+    const root = $('[data-galaxy]');
+    const canvas = $('[data-galaxy-canvas]', root || document);
+    const context = canvas?.getContext('2d', { alpha: true, desynchronized: true });
+    if (!root || !canvas || !context) return;
+
+    const planetData = [
+      { id: 'manifesto', index: '01', code: 'PROLOGUE PLANET', name: '序章星', description: '宇宙用了很久，才把你送到我眼前。', x: -340, y: -155, radius: 62, light: '#cfc2ff', color: '#7c68bd', dark: '#272040', glow: 'rgba(188,168,255,.32)' },
+      { id: 'chronicle', index: '02', code: 'TIME RING', name: '时间环', description: '不是倒数，而是每一秒都在继续向你靠近。', x: 365, y: -185, radius: 76, light: '#ffe1aa', color: '#b8803f', dark: '#342313', glow: 'rgba(243,206,145,.3)', ring: true },
+      { id: 'signals', index: '03', code: 'SIGNAL STATION', name: '心声站', description: '八次来自深空的回响，把那些想说的话送到你身边。', x: -305, y: 255, radius: 68, light: '#d1ddff', color: '#5979d6', dark: '#172345', glow: 'rgba(159,184,255,.3)' },
+      { id: 'memories', index: '04', code: 'MEMORY PLANET', name: '回忆星', description: '十一帧完整照片，不裁掉属于你的任何一寸光。', x: 410, y: 245, radius: 72, light: '#ffd4df', color: '#bd718b', dark: '#3b1927', glow: 'rgba(255,179,198,.28)' }
+    ];
+    const dockButtons = $$('[data-galaxy-planet]', root);
+    const focusIndex = $('[data-galaxy-index]', root);
+    const focusCode = $('[data-galaxy-code]', root);
+    const focusName = $('[data-galaxy-name]', root);
+    const focusDescription = $('[data-galaxy-description]', root);
+    const focusLink = $('[data-galaxy-link]', root);
+    const coordinate = $('[data-galaxy-coordinate]', root);
+    const enterButton = $('[data-galaxy-enter]', root);
+    const homeButton = $('[data-galaxy-home]', root);
+
+    let width = 0;
+    let height = 0;
+    let ratio = 1;
+    let visible = false;
+    let animation = 0;
+    let lastFrame = 0;
+    let lastHudUpdate = 0;
+    let stars = [];
+    let dust = [];
+    let screenPlanets = [];
+    let activePlanet = 0;
+    let dragging = false;
+    let dragDistance = 0;
+    let pointerId = null;
+    let pointerX = 0;
+    let pointerY = 0;
+    const camera = { x: 0, y: 0, zoom: .82, targetX: 0, targetY: 0, targetZoom: .82 };
+
+    const initialZoom = () => width < 760 ? .48 : width < 1000 ? .64 : .82;
+    const selectedZoom = () => width < 760 ? 1.14 : width < 1000 ? 1.28 : 1.42;
+    const seeded = value => {
+      const result = Math.sin(value * 9283.177 + 19.73) * 43758.5453;
+      return result - Math.floor(result);
+    };
+    const signed = value => String(Math.round(value)).padStart(3, '0');
+    const worldToScreen = (x, y, depth = 1) => ({
+      x: width / 2 + (x - camera.x * depth) * camera.zoom,
+      y: height / 2 + (y - camera.y * depth) * camera.zoom
+    });
+    const updateCoordinate = () => {
+      if (coordinate) coordinate.textContent = `X ${signed(camera.x)} / Y ${signed(camera.y)} / Z ${String(Math.round(camera.zoom * 100)).padStart(3, '0')}`;
+    };
+
+    const makeField = () => {
+      const starCount = Math.min(220, Math.max(110, Math.round(width * height / 6400)));
+      stars = Array.from({ length: starCount }, (_, index) => ({
+        x: (seeded(index + 1) - .5) * width * 3.2,
+        y: (seeded(index + 411) - .5) * height * 3.2,
+        radius: .25 + seeded(index + 877) * 1.15,
+        alpha: .18 + seeded(index + 1211) * .65,
+        phase: seeded(index + 1601) * Math.PI * 2,
+        depth: .16 + seeded(index + 2003) * .62,
+        tone: seeded(index + 2401)
+      }));
+      dust = Array.from({ length: width < 760 ? 64 : 104 }, (_, index) => {
+        const progress = index / (width < 760 ? 64 : 104);
+        const arm = index % 3;
+        const angle = progress * Math.PI * 5.5 + arm * Math.PI * .66;
+        const radius = 72 + progress * 380;
+        return {
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius * .42,
+          radius: .3 + seeded(index + 3011) * 1.2,
+          alpha: .08 + (1 - progress) * .24
+        };
+      });
+    };
+
+    const resize = () => {
+      const bounds = root.getBoundingClientRect();
+      width = Math.max(320, Math.round(bounds.width));
+      height = Math.max(640, Math.round(bounds.height));
+      ratio = Math.min(window.devicePixelRatio || 1, width < 760 ? 1.25 : 1.5);
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      if (!root.classList.contains('is-entered')) {
+        camera.zoom = camera.targetZoom = initialZoom();
+      }
+      makeField();
+      schedule();
+    };
+
+    const drawOrbit = (planet, index) => {
+      const center = worldToScreen(0, 0);
+      const distance = Math.hypot(planet.x, planet.y) * camera.zoom;
+      context.save();
+      context.translate(center.x, center.y);
+      context.rotate((index - 1.5) * .08);
+      context.beginPath();
+      context.ellipse(0, 0, distance, distance * .47, 0, 0, Math.PI * 2);
+      context.strokeStyle = index === activePlanet && root.classList.contains('is-entered') ? 'rgba(243,206,145,.2)' : 'rgba(241,236,223,.075)';
+      context.lineWidth = 1;
+      if (context.setLineDash) context.setLineDash(index % 2 ? [3, 8] : []);
+      context.stroke();
+      if (context.setLineDash) context.setLineDash([]);
+      context.restore();
+    };
+
+    const drawCenter = time => {
+      const center = worldToScreen(0, 0);
+      const pulse = reducedMotion ? 1 : 1 + Math.sin(time * .0012) * .06;
+      const glow = context.createRadialGradient(center.x, center.y, 0, center.x, center.y, 125 * camera.zoom * pulse);
+      glow.addColorStop(0, 'rgba(255,239,198,.88)');
+      glow.addColorStop(.14, 'rgba(243,206,145,.34)');
+      glow.addColorStop(.55, 'rgba(130,112,220,.1)');
+      glow.addColorStop(1, 'rgba(130,112,220,0)');
+      context.fillStyle = glow;
+      context.beginPath();
+      context.arc(center.x, center.y, 125 * camera.zoom * pulse, 0, Math.PI * 2);
+      context.fill();
+      context.beginPath();
+      context.arc(center.x, center.y, Math.max(9, 18 * camera.zoom), 0, Math.PI * 2);
+      context.fillStyle = '#f7dfae';
+      context.shadowBlur = 22;
+      context.shadowColor = 'rgba(243,206,145,.75)';
+      context.fill();
+      context.shadowBlur = 0;
+      if (root.classList.contains('is-entered')) {
+        context.fillStyle = 'rgba(243,206,145,.72)';
+        context.font = '500 9px "Cascadia Mono", monospace';
+        context.textAlign = 'center';
+        context.fillText('HUAHUA / SYSTEM CORE', center.x, center.y + Math.max(30, 38 * camera.zoom));
+      }
+    };
+
+    const drawPlanet = (planet, index, time) => {
+      const point = worldToScreen(planet.x, planet.y);
+      const radius = Math.max(18, planet.radius * camera.zoom);
+      if (point.x < -radius * 3 || point.x > width + radius * 3 || point.y < -radius * 3 || point.y > height + radius * 3) return;
+      const selected = index === activePlanet && root.classList.contains('is-entered');
+      const pulse = reducedMotion ? 1 : 1 + Math.sin(time * .0015 + index) * .04;
+
+      context.save();
+      context.translate(point.x, point.y);
+      if (selected) {
+        context.beginPath();
+        context.arc(0, 0, radius * (1.38 + Math.sin(time * .002) * .05), 0, Math.PI * 2);
+        context.strokeStyle = 'rgba(243,206,145,.42)';
+        context.lineWidth = 1;
+        context.stroke();
+        context.beginPath();
+        context.arc(0, 0, radius * 1.62, 0, Math.PI * 2);
+        context.strokeStyle = 'rgba(241,236,223,.12)';
+        if (context.setLineDash) context.setLineDash([2, 7]);
+        context.stroke();
+        if (context.setLineDash) context.setLineDash([]);
+      }
+
+      const halo = context.createRadialGradient(0, 0, radius * .35, 0, 0, radius * 2.15);
+      halo.addColorStop(0, planet.glow);
+      halo.addColorStop(1, 'rgba(0,0,0,0)');
+      context.fillStyle = halo;
+      context.beginPath();
+      context.arc(0, 0, radius * 2.15, 0, Math.PI * 2);
+      context.fill();
+
+      if (planet.ring) {
+        context.save();
+        context.rotate(-.24);
+        context.beginPath();
+        context.ellipse(0, 0, radius * 1.72, radius * .48, 0, 0, Math.PI * 2);
+        context.strokeStyle = 'rgba(243,206,145,.5)';
+        context.lineWidth = Math.max(1.2, radius * .055);
+        context.stroke();
+        context.restore();
+      }
+
+      const sphere = context.createRadialGradient(-radius * .32, -radius * .38, radius * .08, 0, 0, radius * pulse);
+      sphere.addColorStop(0, planet.light);
+      sphere.addColorStop(.38, planet.color);
+      sphere.addColorStop(1, planet.dark);
+      context.beginPath();
+      context.arc(0, 0, radius * pulse, 0, Math.PI * 2);
+      context.fillStyle = sphere;
+      context.shadowBlur = selected ? 30 : 18;
+      context.shadowColor = planet.glow;
+      context.fill();
+      context.shadowBlur = 0;
+
+      context.save();
+      context.beginPath();
+      context.arc(0, 0, radius * pulse, 0, Math.PI * 2);
+      context.clip();
+      context.globalAlpha = .13;
+      for (let stripe = -2; stripe <= 2; stripe++) {
+        context.beginPath();
+        context.ellipse(radius * .16, stripe * radius * .25, radius * 1.05, radius * .18, -.16, 0, Math.PI * 2);
+        context.strokeStyle = stripe % 2 ? '#fff' : planet.dark;
+        context.lineWidth = Math.max(1, radius * .07);
+        context.stroke();
+      }
+      context.restore();
+
+      const moonAngle = time * (.00022 + index * .000035) + index * 1.6;
+      const moonX = Math.cos(moonAngle) * radius * 1.65;
+      const moonY = Math.sin(moonAngle) * radius * .72;
+      context.beginPath();
+      context.arc(moonX, moonY, Math.max(2.1, radius * .095), 0, Math.PI * 2);
+      context.fillStyle = index % 2 ? 'rgba(243,206,145,.9)' : 'rgba(220,225,255,.88)';
+      context.fill();
+      context.restore();
+
+      screenPlanets.push({ index, x: point.x, y: point.y, radius: radius * 1.3 });
+      if (root.classList.contains('is-entered')) {
+        context.fillStyle = selected ? 'rgba(243,206,145,.94)' : 'rgba(241,236,223,.56)';
+        context.font = selected ? '600 12px "Songti SC", serif' : '500 11px "Songti SC", serif';
+        context.textAlign = 'center';
+        context.fillText(`${planet.index} / ${planet.name}`, point.x, point.y + radius + 25);
+      }
+    };
+
+    const draw = time => {
+      camera.x += (camera.targetX - camera.x) * .075;
+      camera.y += (camera.targetY - camera.y) * .075;
+      camera.zoom += (camera.targetZoom - camera.zoom) * .07;
+      context.clearRect(0, 0, width, height);
+
+      for (const star of stars) {
+        const point = worldToScreen(star.x, star.y, star.depth);
+        if (point.x < -10 || point.x > width + 10 || point.y < -10 || point.y > height + 10) continue;
+        const shimmer = reducedMotion ? 1 : .68 + Math.sin(time * .0015 + star.phase) * .32;
+        context.beginPath();
+        context.arc(point.x, point.y, star.radius, 0, Math.PI * 2);
+        context.fillStyle = star.tone > .9 ? `rgba(243,206,145,${star.alpha * shimmer})` : star.tone > .8 ? `rgba(159,184,255,${star.alpha * shimmer})` : `rgba(241,236,223,${star.alpha * shimmer})`;
+        context.fill();
+      }
+
+      const center = worldToScreen(0, 0);
+      for (const particle of dust) {
+        const point = worldToScreen(particle.x, particle.y);
+        context.beginPath();
+        context.arc(point.x, point.y, particle.radius, 0, Math.PI * 2);
+        context.fillStyle = `rgba(185,174,255,${particle.alpha})`;
+        context.fill();
+      }
+      const coreGlow = context.createRadialGradient(center.x, center.y, 10, center.x, center.y, 420 * camera.zoom);
+      coreGlow.addColorStop(0, 'rgba(121,105,214,.09)');
+      coreGlow.addColorStop(1, 'rgba(121,105,214,0)');
+      context.fillStyle = coreGlow;
+      context.beginPath();
+      context.arc(center.x, center.y, 420 * camera.zoom, 0, Math.PI * 2);
+      context.fill();
+
+      planetData.forEach(drawOrbit);
+      drawCenter(time);
+      screenPlanets = [];
+      planetData.forEach((planet, index) => drawPlanet(planet, index, time));
+
+      if (coordinate && time - lastHudUpdate > 180) {
+        updateCoordinate();
+        lastHudUpdate = time;
+      }
+    };
+
+    const loop = time => {
+      animation = 0;
+      if (!visible || document.hidden) return;
+      const frameInterval = width < 760 ? 1000 / 30 : 1000 / 60;
+      if (time - lastFrame >= frameInterval) {
+        draw(time);
+        lastFrame = time;
+      }
+      animation = requestAnimationFrame(loop);
+    };
+    function schedule() {
+      if (reducedMotion) { draw(performance.now()); return; }
+      if (visible && !animation) animation = requestAnimationFrame(loop);
+    }
+
+    const setEntered = entered => {
+      root.classList.toggle('is-entered', entered);
+      if (entered && camera.targetZoom < initialZoom()) camera.targetZoom = initialZoom();
+      schedule();
+    };
+    const updateFocus = index => {
+      const planet = planetData[index];
+      if (!planet) return;
+      activePlanet = index;
+      if (focusIndex) focusIndex.textContent = planet.index;
+      if (focusCode) focusCode.textContent = planet.code;
+      if (focusName) focusName.textContent = planet.name;
+      if (focusDescription) focusDescription.textContent = planet.description;
+      if (focusLink) focusLink.href = `#${planet.id}`;
+      dockButtons.forEach((button, itemIndex) => button.setAttribute('aria-pressed', String(itemIndex === index)));
+    };
+    const selectPlanet = index => {
+      const planet = planetData[index];
+      if (!planet) return;
+      setEntered(true);
+      updateFocus(index);
+      camera.targetX = planet.x;
+      camera.targetY = planet.y;
+      camera.targetZoom = selectedZoom();
+      schedule();
+    };
+    const resetView = () => {
+      setEntered(true);
+      camera.targetX = 0;
+      camera.targetY = 0;
+      camera.targetZoom = initialZoom();
+      schedule();
+    };
+    const changeZoom = amount => {
+      setEntered(true);
+      camera.targetZoom = Math.max(.42, Math.min(1.75, camera.targetZoom + amount));
+      schedule();
+    };
+
+    enterButton?.addEventListener('click', () => { setEntered(true); resetView(); });
+    $$('[data-enter-galaxy]').forEach(link => link.addEventListener('click', () => setEntered(true)));
+    dockButtons.forEach((button, index) => button.addEventListener('click', () => selectPlanet(index)));
+    homeButton?.addEventListener('click', resetView);
+    $$('[data-galaxy-zoom]', root).forEach(button => button.addEventListener('click', () => changeZoom(button.dataset.galaxyZoom === 'in' ? .16 : -.16)));
+
+    canvas.addEventListener('pointerdown', event => {
+      if (event.pointerType === 'touch' && Math.abs(event.movementY || 0) > Math.abs(event.movementX || 0)) return;
+      setEntered(true);
+      dragging = true;
+      dragDistance = 0;
+      pointerId = event.pointerId;
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      canvas.classList.add('is-dragging');
+      canvas.setPointerCapture?.(event.pointerId);
+    });
+    canvas.addEventListener('pointermove', event => {
+      if (!dragging || event.pointerId !== pointerId) return;
+      const deltaX = event.clientX - pointerX;
+      const deltaY = event.clientY - pointerY;
+      dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      camera.targetX = Math.max(-760, Math.min(760, camera.targetX - deltaX / camera.zoom));
+      camera.targetY = Math.max(-560, Math.min(560, camera.targetY - deltaY / camera.zoom));
+      camera.x = camera.targetX;
+      camera.y = camera.targetY;
+      updateCoordinate();
+      schedule();
+    });
+    const finishPointer = event => {
+      if (!dragging || event.pointerId !== pointerId) return;
+      dragging = false;
+      canvas.classList.remove('is-dragging');
+      canvas.releasePointerCapture?.(event.pointerId);
+      if (dragDistance < 12) {
+        const bounds = canvas.getBoundingClientRect();
+        const x = event.clientX - bounds.left;
+        const y = event.clientY - bounds.top;
+        const hit = screenPlanets.find(item => Math.hypot(item.x - x, item.y - y) <= item.radius + 14);
+        if (hit) selectPlanet(hit.index);
+      }
+      pointerId = null;
+    };
+    canvas.addEventListener('pointerup', finishPointer);
+    canvas.addEventListener('pointercancel', finishPointer);
+
+    root.addEventListener('keydown', event => {
+      const step = event.shiftKey ? 110 : 55;
+      if (event.key === 'ArrowLeft') camera.targetX -= step;
+      else if (event.key === 'ArrowRight') camera.targetX += step;
+      else if (event.key === 'ArrowUp') camera.targetY -= step;
+      else if (event.key === 'ArrowDown') camera.targetY += step;
+      else if (event.key === '+' || event.key === '=') changeZoom(.14);
+      else if (event.key === '-') changeZoom(-.14);
+      else if (event.key === '0') resetView();
+      else return;
+      event.preventDefault();
+      setEntered(true);
+      schedule();
+    });
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+        visible = entry.isIntersecting;
+        if (visible) schedule();
+        else { cancelAnimationFrame(animation); animation = 0; }
+      }), { threshold: .03 });
+      observer.observe(root);
+    } else { visible = true; }
+    if ('ResizeObserver' in window) new ResizeObserver(resize).observe(root);
+    else window.addEventListener('resize', resize, { passive: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { cancelAnimationFrame(animation); animation = 0; }
+      else schedule();
+    });
+
+    updateFocus(0);
+    resize();
   }
 
   renderSignals();
@@ -265,6 +681,7 @@
   setupDialogs();
   setupMotion();
   setupCosmos();
+  setupGalaxyExplorer();
   updateTime();
   window.setInterval(updateTime, 1000);
   const year = $('[data-year]');
