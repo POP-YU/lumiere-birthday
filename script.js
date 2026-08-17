@@ -16,6 +16,19 @@
     ['无限靠近', '温柔的常数', '你是我加速膨胀的宇宙里，唯一温柔而笃定的常数。', 'COSMIC']
   ];
   const captions = ['心动存档', '一起走过的晴天', '偷偷收藏的笑', '星光落在肩上', '我们的散步轨迹', '轻轻靠近的瞬间', '夏日的信', '在同一片天空下', '小小的仪式感', '被记住的温柔', '永远的我们'];
+  const memoryNotes = [
+    '那一刻没有盛大配乐，却成了后来所有故事的序章。',
+    '晴天很普通，因为和你一起，才被我认真保存。',
+    '宇宙里有无数种光，我还是最喜欢你笑起来的那一种。',
+    '光落在你肩上，而我的目光刚好在那里停留。',
+    '走过的路不需要名字，只要身边的人一直是你。',
+    '距离慢慢缩短，两个世界从此共享同一条轨道。',
+    '把夏天折成一封信，收件人永远只有一个。',
+    '抬头看见同一片天，就像我们从来没有离得很远。',
+    '浪漫不是隆重，是每一个小小瞬间都愿意为你用心。',
+    '温柔被镜头记住，也被我一遍又一遍放在心里。',
+    '这一帧没有终点，它只是我们下一段故事的开始。'
+  ];
   const pad = value => String(Math.max(0, value)).padStart(2, '0');
 
   function renderSignals() {
@@ -30,14 +43,88 @@
   function renderGallery() {
     const host = $('[data-gallery]');
     if (!host) return;
-    host.innerHTML = captions.map((caption, index) => {
+    const slides = captions.map((caption, index) => {
       const number = index + 1;
       const src = `https://pop-yu.github.io/lumiere-birthday/images/${number}.jpg`;
-      return `<button class="memory-card" type="button" data-photo="${src}" data-caption="${caption}" aria-label="查看照片：${caption}">
-        <img src="${src}" alt="${caption}" loading="lazy" decoding="async" width="960" height="1280">
-        <span class="memory-label"><span>${caption}</span><i>${pad(number)}</i></span>
+      return `<button class="memory-slide${index === 0 ? ' is-active' : ''}" type="button" data-memory-slide="${index}" data-photo="${src}" data-caption="${caption}" aria-label="放大照片：${caption}" aria-hidden="${index === 0 ? 'false' : 'true'}" tabindex="${index === 0 ? '0' : '-1'}" style="--memory-image:url('${src}')">
+        <span class="memory-picture"><img src="${src}" alt="${caption}" loading="${index < 2 ? 'eager' : 'lazy'}" decoding="async" width="960" height="1280"></span>
+        <span class="memory-frame-mark" aria-hidden="true"><i>✦</i><b>${pad(number)}</b></span>
       </button>`;
     }).join('');
+    const rail = captions.map((caption, index) => `<button type="button" class="memory-dot${index === 0 ? ' is-active' : ''}" data-memory-jump="${index}" role="tab" aria-selected="${index === 0 ? 'true' : 'false'}" aria-label="切换到第 ${index + 1} 帧：${caption}"><span>${pad(index + 1)}</span><i></i></button>`).join('');
+    const steps = captions.map((_, index) => `<div class="memory-step" data-memory-step="${index}" aria-hidden="true"></div>`).join('');
+    host.innerHTML = `<div class="memory-sticky">
+      <div class="memory-stack">${slides}</div>
+      <div class="memory-copy" aria-live="polite">
+        <p class="overline"><span>✦</span> CELESTIAL FRAME <b data-memory-current>01</b></p>
+        <h3 data-memory-caption>${captions[0]}</h3>
+        <p data-memory-note>${memoryNotes[0]}</p>
+        <div class="memory-nav"><button type="button" data-memory-prev aria-label="上一帧">←</button><button type="button" data-memory-next aria-label="下一帧">→</button></div>
+      </div>
+      <div class="memory-counter" aria-hidden="true"><strong data-memory-counter>01</strong><span>/ ${pad(captions.length)}</span></div>
+      <div class="memory-rail" role="tablist" aria-label="选择记忆帧">${rail}</div>
+      <div class="memory-progress" aria-hidden="true"><i data-memory-progress></i></div>
+      <p class="memory-scroll-cue" aria-hidden="true">SCROLL TO TRAVEL <i></i></p>
+    </div><div class="memory-steps">${steps}</div>`;
+  }
+
+  function setupMemoryGallery() {
+    const host = $('[data-gallery]');
+    if (!host) return;
+    const slides = $$('[data-memory-slide]', host);
+    const dots = $$('[data-memory-jump]', host);
+    const steps = $$('[data-memory-step]', host);
+    const current = $('[data-memory-current]', host);
+    const counter = $('[data-memory-counter]', host);
+    const caption = $('[data-memory-caption]', host);
+    const note = $('[data-memory-note]', host);
+    const progress = $('[data-memory-progress]', host);
+    const previous = $('[data-memory-prev]', host);
+    const next = $('[data-memory-next]', host);
+    let active = 0;
+
+    const activate = index => {
+      const target = Math.max(0, Math.min(captions.length - 1, index));
+      active = target;
+      slides.forEach((slide, itemIndex) => {
+        const isActive = itemIndex === target;
+        slide.classList.toggle('is-active', isActive);
+        slide.setAttribute('aria-hidden', String(!isActive));
+        slide.tabIndex = isActive ? 0 : -1;
+      });
+      dots.forEach((dot, itemIndex) => {
+        const isActive = itemIndex === target;
+        dot.classList.toggle('is-active', isActive);
+        dot.setAttribute('aria-selected', String(isActive));
+      });
+      if (current) current.textContent = pad(target + 1);
+      if (counter) counter.textContent = pad(target + 1);
+      if (caption) caption.textContent = captions[target];
+      if (note) note.textContent = memoryNotes[target];
+      if (progress) progress.style.transform = `scaleX(${(target + 1) / captions.length})`;
+      if (previous) previous.disabled = target === 0;
+      if (next) next.disabled = target === captions.length - 1;
+    };
+    const travelTo = index => {
+      activate(index);
+      steps[index]?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
+    };
+
+    dots.forEach((dot, index) => dot.addEventListener('click', () => travelTo(index)));
+    previous?.addEventListener('click', () => travelTo(active - 1));
+    next?.addEventListener('click', () => travelTo(active + 1));
+    host.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft') { event.preventDefault(); travelTo(active - 1); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); travelTo(active + 1); }
+    });
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(entries => entries.forEach(entry => {
+        if (entry.isIntersecting) activate(Number(entry.target.dataset.memoryStep));
+      }), { threshold: 0, rootMargin: '-46% 0px -46% 0px' });
+      steps.forEach(step => observer.observe(step));
+    }
+    activate(0);
   }
 
   function updateTime() {
@@ -166,6 +253,7 @@
 
   renderSignals();
   renderGallery();
+  setupMemoryGallery();
   setupReveal();
   setupDialogs();
   setupSound();
