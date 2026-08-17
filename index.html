@@ -19,7 +19,7 @@
   <meta name="twitter:description" content="今夜，整片宇宙只为一个人亮起。">
   <meta name="twitter:image" content="https://pop-yu.github.io/lumiere-birthday/images/1.jpg">
   <title>花花宇宙 · Celestial Archive</title>
-  <link rel="stylesheet" href="style.css?v=20260817f">
+  <link rel="stylesheet" href="style.css?v=20260817g">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"花花宇宙 · Celestial Archive","description":"献给花花的私人生日星空大赏。","inLanguage":"zh-CN"}</script>
 </head>
 <body>
@@ -30,7 +30,7 @@
 
   <header class="topbar" data-header>
     <a class="monogram" href="#hero" aria-label="返回首页"><span>H</span><i>✦</i><span>H</span></a>
-    <nav aria-label="主导航"><a href="#manifesto">序章</a><a href="#chronicle">时间</a><a href="#signals">心声</a><a href="#memories">档案</a></nav>
+    <nav aria-label="主导航"><a href="#galaxy">星系</a><a href="#manifesto">序章</a><a href="#chronicle">时间</a><a href="#signals">心声</a><a href="#memories">档案</a></nav>
     <span class="sound sound-static" aria-hidden="true"><i></i><span>STARDATE 2026</span></span>
   </header>
 
@@ -51,10 +51,46 @@
       </div>
       <div class="hero-copy reveal">
         <p class="overline"><span>✦</span> CELESTIAL ARCHIVE</p>
-        <h1 id="hero-title"><span>Happy</span><span>Birthday</span><em>花花</em></h1>
+        <h1 id="hero-title"><span>Happy</span><span>Birthday</span><em><b>花花</b><small>HUAHUA / 2026</small></em></h1>
         <p>今夜，整片宇宙只做一件事：<br>把所有星光都交到你手里。</p>
       </div>
-      <div class="hero-bottom reveal"><button type="button" class="enter-link" data-letter>开启今夜的信 <span>↗</span></button><a href="#manifesto">向下进入星河 <i></i></a></div>
+      <div class="hero-bottom reveal"><button type="button" class="enter-link" data-letter>开启今夜的信 <span>↗</span></button><a href="#galaxy" data-enter-galaxy>进入可探索宇宙 <i></i></a></div>
+    </section>
+
+    <section class="galaxy-explorer" id="galaxy" data-galaxy aria-labelledby="galaxy-title" aria-describedby="galaxy-help" tabindex="0">
+      <canvas class="galaxy-canvas" data-galaxy-canvas aria-hidden="true"></canvas>
+      <p class="visually-hidden" id="galaxy-help">进入后可拖动星空自由巡航，使用方向键移动、加减号缩放，或使用星球按钮选择章节。</p>
+      <div class="galaxy-nebula" aria-hidden="true"></div>
+
+      <header class="galaxy-intro">
+        <p class="overline"><span>✦</span> INTERACTIVE CELESTIAL MAP</p>
+        <h2 id="galaxy-title"><span>这次，不只是看。</span><strong>去触碰整片宇宙。</strong></h2>
+        <p>拖动星空自由巡航，点击任意星球靠近。每颗行星，都是我们故事里一个可以抵达的章节。</p>
+        <button type="button" class="galaxy-enter" data-galaxy-enter><span>进入花花星系</span><i>↗</i></button>
+      </header>
+
+      <div class="galaxy-hud" aria-hidden="true"><span>HUAHUA SYSTEM</span><b data-galaxy-coordinate>X 000 / Y 000 / Z 090</b></div>
+
+      <nav class="galaxy-dock" aria-label="选择要探索的故事星球">
+        <button type="button" data-galaxy-planet="manifesto" aria-pressed="true"><i style="--planet:#bca8ff"></i><span><b>序章星</b><small>PROLOGUE / 01</small></span></button>
+        <button type="button" data-galaxy-planet="chronicle" aria-pressed="false"><i style="--planet:#f3ce91"></i><span><b>时间环</b><small>TIME / 02</small></span></button>
+        <button type="button" data-galaxy-planet="signals" aria-pressed="false"><i style="--planet:#9fb8ff"></i><span><b>心声站</b><small>SIGNALS / 03</small></span></button>
+        <button type="button" data-galaxy-planet="memories" aria-pressed="false"><i style="--planet:#ffb3c6"></i><span><b>回忆星</b><small>MEMORIES / 04</small></span></button>
+      </nav>
+
+      <aside class="galaxy-focus" data-galaxy-focus aria-live="polite">
+        <p><span data-galaxy-index>01</span> <b data-galaxy-code>PROLOGUE PLANET</b></p>
+        <h3 data-galaxy-name>序章星</h3>
+        <p data-galaxy-description>宇宙用了很久，才把你送到我眼前。</p>
+        <a href="#manifesto" data-galaxy-link>进入这个章节 <span>↗</span></a>
+      </aside>
+
+      <div class="galaxy-controls" aria-label="星系视角控制">
+        <button type="button" data-galaxy-zoom="out" aria-label="缩小星系">−</button>
+        <button type="button" data-galaxy-home aria-label="返回星系总览">◎</button>
+        <button type="button" data-galaxy-zoom="in" aria-label="放大星系">＋</button>
+      </div>
+      <p class="galaxy-gesture" aria-hidden="true"><i></i> DRAG TO TRAVEL · SELECT A PLANET</p>
     </section>
 
     <div class="ticker" aria-hidden="true"><div><span>HAPPY BIRTHDAY HUAHUA</span><i>✦</i><span>YOU ARE THE BRIGHTEST COORDINATE</span><i>✦</i><span>HAPPY BIRTHDAY HUAHUA</span><i>✦</i><span>YOU ARE THE BRIGHTEST COORDINATE</span><i>✦</i></div></div>
@@ -135,7 +171,7 @@
   </dialog>
 
   <dialog class="lightbox" data-lightbox aria-label="查看照片"><button class="dialog-close" type="button" data-lightbox-close aria-label="关闭照片">×</button><img data-lightbox-image src="" alt=""><p data-lightbox-caption></p></dialog>
-  <script src="script.js?v=20260817f" defer></script>
+  <script src="script.js?v=20260817g" defer></script>
 </body>
 </html>
 
