@@ -16,6 +16,7 @@
     ['无限靠近', '温柔的常数', '你是我加速膨胀的宇宙里，唯一温柔而笃定的常数。', 'COSMIC']
   ];
   const captions = ['心动存档', '一起走过的晴天', '偷偷收藏的笑', '星光落在肩上', '我们的散步轨迹', '轻轻靠近的瞬间', '夏日的信', '在同一片天空下', '小小的仪式感', '被记住的温柔', '永远的我们'];
+  const memorySizes = [[1080, 1440], [1081, 1600], [1200, 1600], [1080, 1440], [1200, 1600], [1200, 1600], [1208, 1600], [957, 1600], [1080, 1510], [1200, 1600], [1214, 1600]];
   const memoryNotes = [
     '那一刻没有盛大配乐，却成了后来所有故事的序章。',
     '晴天很普通，因为和你一起，才被我认真保存。',
@@ -46,17 +47,20 @@
     const slides = captions.map((caption, index) => {
       const number = index + 1;
       const src = `https://pop-yu.github.io/lumiere-birthday/images/${number}.jpg`;
-      return `<button class="memory-slide${index === 0 ? ' is-active' : ''}" type="button" data-memory-slide="${index}" data-photo="${src}" data-caption="${caption}" aria-label="放大照片：${caption}" aria-hidden="${index === 0 ? 'false' : 'true'}" tabindex="${index === 0 ? '0' : '-1'}" style="--memory-image:url('${src}')">
-        <span class="memory-picture"><img src="${src}" alt="${caption}" loading="${index < 2 ? 'eager' : 'lazy'}" decoding="async" width="960" height="1280"></span>
+      const [width, height] = memorySizes[index];
+      const imageSource = index === 0 ? `src="${src}"` : `data-src="${src}"`;
+      return `<article class="memory-slide${index === 0 ? ' is-active' : ''}" data-memory-slide="${index}" aria-hidden="${index === 0 ? 'false' : 'true'}" style="--photo-ratio:${width} / ${height}">
+        <span class="memory-ambient" aria-hidden="true"><img ${imageSource} alt="" loading="lazy" decoding="async" width="${width}" height="${height}"></span>
+        <button class="memory-picture" type="button" data-memory-photo data-photo="${src}" data-caption="${caption}" aria-label="放大完整照片：${caption}" tabindex="${index === 0 ? '0' : '-1'}"><span class="memory-photo-shell"><img ${imageSource} alt="${caption}，完整照片" loading="lazy" decoding="async" fetchpriority="low" width="${width}" height="${height}"></span></button>
         <span class="memory-frame-mark" aria-hidden="true"><i>✦</i><b>${pad(number)}</b></span>
-      </button>`;
+      </article>`;
     }).join('');
     const rail = captions.map((caption, index) => `<button type="button" class="memory-dot${index === 0 ? ' is-active' : ''}" data-memory-jump="${index}" role="tab" aria-selected="${index === 0 ? 'true' : 'false'}" aria-label="切换到第 ${index + 1} 帧：${caption}"><span>${pad(index + 1)}</span><i></i></button>`).join('');
     const steps = captions.map((_, index) => `<div class="memory-step" data-memory-step="${index}" aria-hidden="true"></div>`).join('');
     host.innerHTML = `<div class="memory-sticky">
       <div class="memory-stack">${slides}</div>
       <div class="memory-copy" aria-live="polite">
-        <p class="overline"><span>✦</span> CELESTIAL FRAME <b data-memory-current>01</b></p>
+        <p class="overline"><span>✦</span> ORIGINAL RATIO / NO CROP <b data-memory-current>01</b></p>
         <h3 data-memory-caption>${captions[0]}</h3>
         <p data-memory-note>${memoryNotes[0]}</p>
         <div class="memory-nav"><button type="button" data-memory-prev aria-label="上一帧">←</button><button type="button" data-memory-next aria-label="下一帧">→</button></div>
@@ -72,25 +76,38 @@
     const host = $('[data-gallery]');
     if (!host) return;
     const slides = $$('[data-memory-slide]', host);
+    const photoButtons = $$('[data-memory-photo]', host);
     const dots = $$('[data-memory-jump]', host);
     const steps = $$('[data-memory-step]', host);
     const current = $('[data-memory-current]', host);
     const counter = $('[data-memory-counter]', host);
     const caption = $('[data-memory-caption]', host);
     const note = $('[data-memory-note]', host);
+    const copy = $('.memory-copy', host);
     const progress = $('[data-memory-progress]', host);
     const previous = $('[data-memory-prev]', host);
     const next = $('[data-memory-next]', host);
-    let active = 0;
+    let active = -1;
+
+    const loadSlide = index => {
+      const slide = slides[index];
+      if (!slide) return;
+      $$('img[data-src]', slide).forEach(image => {
+        image.src = image.dataset.src;
+        image.removeAttribute('data-src');
+      });
+    };
 
     const activate = index => {
       const target = Math.max(0, Math.min(captions.length - 1, index));
+      const changed = target !== active;
+      [target - 1, target, target + 1].forEach(loadSlide);
       active = target;
       slides.forEach((slide, itemIndex) => {
         const isActive = itemIndex === target;
         slide.classList.toggle('is-active', isActive);
         slide.setAttribute('aria-hidden', String(!isActive));
-        slide.tabIndex = isActive ? 0 : -1;
+        if (photoButtons[itemIndex]) photoButtons[itemIndex].tabIndex = isActive ? 0 : -1;
       });
       dots.forEach((dot, itemIndex) => {
         const isActive = itemIndex === target;
@@ -104,6 +121,9 @@
       if (progress) progress.style.transform = `scaleX(${(target + 1) / captions.length})`;
       if (previous) previous.disabled = target === 0;
       if (next) next.disabled = target === captions.length - 1;
+      if (changed && copy && !reducedMotion && typeof copy.animate === 'function') {
+        copy.animate([{ opacity: .35, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 520, easing: 'cubic-bezier(.22,1,.36,1)' });
+      }
     };
     const travelTo = index => {
       activate(index);
@@ -175,19 +195,6 @@
     lightbox?.addEventListener('click', event => { if (event.target === lightbox) lightbox.close(); });
   }
 
-  function setupSound() {
-    const audio = $('[data-audio]');
-    const button = $('[data-sound]');
-    if (!audio || !button) return;
-    button.addEventListener('click', async () => {
-      try {
-        if (audio.paused) { await audio.play(); button.setAttribute('aria-pressed', 'true'); button.setAttribute('aria-label', '关闭环境音'); }
-        else { audio.pause(); button.setAttribute('aria-pressed', 'false'); button.setAttribute('aria-label', '开启环境音'); }
-      } catch { button.hidden = true; }
-    });
-    audio.addEventListener('error', () => { button.hidden = true; });
-  }
-
   function setupMotion() {
     const header = $('[data-header]');
     const updateHeader = () => header?.classList.toggle('is-scrolled', window.scrollY > 24);
@@ -256,7 +263,6 @@
   setupMemoryGallery();
   setupReveal();
   setupDialogs();
-  setupSound();
   setupMotion();
   setupCosmos();
   updateTime();
