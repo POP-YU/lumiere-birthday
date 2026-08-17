@@ -22,7 +22,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,ital,wght@6..96,400;6..96,500;6..96,600;6..96,700&family=DM+Mono:wght@300;400;500&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20260817b">
+  <link rel="stylesheet" href="style.css?v=20260817c">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"花花宇宙 · Celestial Archive","description":"献给花花的私人生日星空大赏。","inLanguage":"zh-CN"}</script>
 </head>
 <body>
@@ -90,8 +90,12 @@
     </section>
 
     <section class="memories" id="memories" aria-labelledby="memories-title">
-      <div class="memories-head reveal"><p class="overline"><span>✦</span> MEMORY CONSTELLATION</p><h2 id="memories-title">每一帧，<br>都是一颗<strong>星。</strong></h2><p>点击照片，重新抵达那一刻。</p></div>
-      <div class="memory-sky" data-gallery aria-label="记忆相册"></div>
+      <div class="memories-intro">
+        <div class="memory-index reveal"><span>02</span><p>VISUAL ARCHIVE<br>11 FRAMES / ONE ORBIT</p></div>
+        <div class="memories-head reveal"><p class="overline"><span>✦</span> MEMORY CONSTELLATION</p><h2 id="memories-title">把时间展开，<br>每一秒都在<strong>发光。</strong></h2><p>继续向下滑动。十一帧记忆，会像星体一样依次经过眼前。</p></div>
+        <div class="memory-orbit-mark reveal" aria-hidden="true"><span>11</span><i></i><b>FRAMES</b></div>
+      </div>
+      <div class="memory-observatory" data-gallery aria-label="滚动浏览十一帧记忆"></div>
     </section>
 
     <section class="finale" aria-labelledby="finale-title">
@@ -115,7 +119,7 @@
 
   <dialog class="lightbox" data-lightbox aria-label="查看照片"><button class="dialog-close" type="button" data-lightbox-close aria-label="关闭照片">×</button><img data-lightbox-image src="" alt=""><p data-lightbox-caption></p></dialog>
   <audio data-audio loop preload="none" src="music/music.mp3"></audio>
-  <script src="script.js?v=20260817b" defer></script>
+  <script src="script.js?v=20260817c" defer></script>
 </body>
 </html>
 
