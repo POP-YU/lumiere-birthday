@@ -9,9 +9,9 @@
   --lilac: #d2b9ff;
   --rose: #ffb3c6;
   --line: rgba(241, 236, 223, .18);
-  --serif: "Bodoni Moda", "Noto Serif SC", Georgia, serif;
-  --cn: "Noto Serif SC", "Songti SC", serif;
-  --mono: "DM Mono", ui-monospace, Consolas, monospace;
+  --serif: "Bodoni 72", Didot, Georgia, "Times New Roman", serif;
+  --cn: "Songti SC", STSong, SimSun, Georgia, serif;
+  --mono: "SFMono-Regular", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
   --ease-fluid: cubic-bezier(.22, 1, .36, 1);
   --px: 50vw;
   --py: 50vh;
