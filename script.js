@@ -272,16 +272,45 @@
   function setupGalaxyExplorer() {
     const root = $('[data-galaxy]');
     const canvas = $('[data-galaxy-canvas]', root || document);
-    const context = canvas?.getContext('2d', { alpha: true, desynchronized: true });
-    if (!root || !canvas || !context) return;
+    const world = $('[data-galaxy-world]', root || document);
+    if (!root || !canvas || !world) return;
 
     const planetData = [
-      { id: 'manifesto', index: '01', code: 'PROLOGUE PLANET', name: '序章星', description: '宇宙用了很久，才把你送到我眼前。', x: -340, y: -155, radius: 62, light: '#cfc2ff', color: '#7c68bd', dark: '#272040', glow: 'rgba(188,168,255,.32)' },
-      { id: 'chronicle', index: '02', code: 'TIME RING', name: '时间环', description: '不是倒数，而是每一秒都在继续向你靠近。', x: 365, y: -185, radius: 76, light: '#ffe1aa', color: '#b8803f', dark: '#342313', glow: 'rgba(243,206,145,.3)', ring: true },
-      { id: 'signals', index: '03', code: 'SIGNAL STATION', name: '心声站', description: '八次来自深空的回响，把那些想说的话送到你身边。', x: -305, y: 255, radius: 68, light: '#d1ddff', color: '#5979d6', dark: '#172345', glow: 'rgba(159,184,255,.3)' },
-      { id: 'memories', index: '04', code: 'MEMORY PLANET', name: '回忆星', description: '十一帧完整照片，不裁掉属于你的任何一寸光。', x: 410, y: 245, radius: 72, light: '#ffd4df', color: '#bd718b', dark: '#3b1927', glow: 'rgba(255,179,198,.28)' }
+      { id: 'manifesto', index: '01', code: 'PROLOGUE PLANET', name: '序章星', label: 'THE ARRIVAL', description: '宇宙用了很久，才把你送到我眼前。', x: -410, y: -205, size: 132, tone: '#bca8ff', accent: '#7660bd', kind: 'violet', zoom: 1.18 },
+      { id: 'chronicle', index: '02', code: 'TIME RING', name: '时间环', label: 'LOVE CHRONOGRAPH', description: '不是倒数，而是每一秒都在继续向你靠近。', x: 470, y: -275, size: 154, tone: '#f3ce91', accent: '#a86e2f', kind: 'ringed', zoom: 1.08 },
+      { id: 'signals', index: '03', code: 'SIGNAL STATION', name: '心声站', label: 'EIGHT ECHOES', description: '八次来自深空的回响，把那些想说的话送到你身边。', x: -520, y: 360, size: 142, tone: '#9fb8ff', accent: '#4868c8', kind: 'ocean', zoom: 1.12 },
+      { id: 'memories', index: '04', code: 'MEMORY PLANET', name: '回忆星', label: 'ORIGINAL LIGHT', description: '十一帧完整照片，不裁掉属于你的任何一寸光。', x: 555, y: 390, size: 148, tone: '#ffb3c6', accent: '#ad526f', kind: 'rose', zoom: 1.1 }
     ];
+
+    const orbits = [
+      [620, 285, -12], [940, 435, 8], [1310, 610, -7], [1780, 790, 13]
+    ].map((orbit, index) => `<span class="world-orbit orbit-${index + 1}" style="--ow:${orbit[0]}px;--oh:${orbit[1]}px;--or:${orbit[2]}deg"></span>`).join('');
+    const planets = planetData.map((planet, index) => `<span class="celestial-planet planet-${planet.kind}" data-world-planet="${index}" style="--x:${planet.x}px;--y:${planet.y}px;--size:${planet.size}px;--tone:${planet.tone};--accent:${planet.accent}">
+      <span class="planet-selection"><i></i><i></i></span>
+      <span class="planet-sphere"><i class="planet-atmosphere"></i><i class="planet-surface"></i><i class="planet-night"></i></span>
+      ${planet.kind === 'ringed' ? '<span class="planet-ring"></span>' : ''}
+      ${planet.kind === 'ocean' ? '<span class="planet-moon"></span>' : ''}
+      <span class="planet-label"><small>${planet.index} / ${planet.label}</small><b>${planet.name}</b></span>
+    </span>`).join('');
+
+    world.innerHTML = `${orbits}
+      <svg class="constellation-map" viewBox="0 0 2100 1500" aria-hidden="true">
+        <g><path d="M164 356 286 281 418 344 528 246 664 303"/><path d="M1520 245 1658 322 1782 251 1910 338"/><path d="M1412 1040 1536 916 1681 994 1818 872 1940 936"/></g>
+        <g class="constellation-points"><circle cx="164" cy="356" r="4"/><circle cx="286" cy="281" r="3"/><circle cx="418" cy="344" r="5"/><circle cx="528" cy="246" r="3"/><circle cx="664" cy="303" r="4"/><circle cx="1520" cy="245" r="4"/><circle cx="1658" cy="322" r="3"/><circle cx="1782" cy="251" r="5"/><circle cx="1910" cy="338" r="3"/><circle cx="1412" cy="1040" r="3"/><circle cx="1536" cy="916" r="4"/><circle cx="1681" cy="994" r="3"/><circle cx="1818" cy="872" r="5"/><circle cx="1940" cy="936" r="3"/></g>
+      </svg>
+      <span class="system-core" style="--x:0px;--y:0px"><i class="core-aura"></i><i class="core-sun"></i><i class="core-orbit"></i><b>HUAHUA</b><small>SYSTEM HEART / 2026</small></span>
+      <span class="celestial-object black-hole" style="--x:-930px;--y:-470px"><i></i><b>THE QUIET VOID</b><small>GRAVITY / 08</small></span>
+      <span class="celestial-object binary-system" style="--x:930px;--y:-500px"><i></i><i></i><b>TWIN LIGHTS</b><small>BINARY / 06</small></span>
+      <span class="celestial-object ice-giant" style="--x:-930px;--y:590px"><i></i><b>BLUE HOUR</b><small>ICE GIANT / 07</small></span>
+      <span class="celestial-object rose-moon" style="--x:960px;--y:610px"><i></i><b>BLUSH MOON</b><small>MOON / 09</small></span>
+      <span class="asteroid-belt" style="--x:40px;--y:45px">${Array.from({ length: 22 }, (_, index) => `<i style="--a:${index * 16.36}deg;--d:${index % 3 * 13}px;--s:${2 + index % 4}px"></i>`).join('')}</span>
+      <span class="deep-comet" style="--x:760px;--y:20px"><i></i></span>
+      <span class="cosmic-label label-north" style="--x:-730px;--y:-250px"><i></i> PERSEUS VEIL / N–17</span>
+      <span class="cosmic-label label-south" style="--x:720px;--y:240px"><i></i> ROSE NEBULA / S–11</span>
+      ${planets}`;
+
     const dockButtons = $$('[data-galaxy-planet]', root);
+    const worldPlanets = $$('[data-world-planet]', world);
     const focusIndex = $('[data-galaxy-index]', root);
     const focusCode = $('[data-galaxy-code]', root);
     const focusName = $('[data-galaxy-name]', root);
@@ -298,260 +327,192 @@
     let animation = 0;
     let lastFrame = 0;
     let lastHudUpdate = 0;
-    let stars = [];
-    let dust = [];
-    let screenPlanets = [];
     let activePlanet = 0;
     let dragging = false;
-    let dragDistance = 0;
     let pointerId = null;
     let pointerX = 0;
     let pointerY = 0;
-    const camera = { x: 0, y: 0, zoom: .82, targetX: 0, targetY: 0, targetZoom: .82 };
-
-    const initialZoom = () => width < 760 ? .48 : width < 1000 ? .64 : .82;
-    const selectedZoom = () => width < 760 ? 1.14 : width < 1000 ? 1.28 : 1.42;
+    let pointerTime = 0;
+    let dragDistance = 0;
+    let fieldMode = '';
+    const camera = { x: 0, y: 0, zoom: .68, targetX: 0, targetY: 0, targetZoom: .68, velocityX: 0, velocityY: 0 };
+    const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
+    const initialZoom = () => width < 560 ? .43 : width < 900 ? .54 : .68;
+    const signed = value => `${value < 0 ? '−' : '+'}${String(Math.abs(Math.round(value))).padStart(4, '0')}`;
     const seeded = value => {
-      const result = Math.sin(value * 9283.177 + 19.73) * 43758.5453;
+      const result = Math.sin(value * 127.13 + 311.7) * 43758.5453;
       return result - Math.floor(result);
     };
-    const signed = value => String(Math.round(value)).padStart(3, '0');
-    const worldToScreen = (x, y, depth = 1) => ({
-      x: width / 2 + (x - camera.x * depth) * camera.zoom,
-      y: height / 2 + (y - camera.y * depth) * camera.zoom
-    });
+
+    let gl = null;
+    let fallback = null;
+    let program = null;
+    let starBuffer = null;
+    let starCount = 0;
+    let uniforms = null;
+    let attributes = null;
+
+    const makeShader = (type, source) => {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { gl.deleteShader(shader); return null; }
+      return shader;
+    };
+    const initRenderer = () => {
+      gl = canvas.getContext('webgl', { alpha: true, antialias: false, depth: false, stencil: false, powerPreference: 'high-performance', preserveDrawingBuffer: false });
+      if (!gl) { fallback = canvas.getContext('2d', { alpha: true }); root.classList.add('is-canvas-fallback'); return; }
+      const vertex = makeShader(gl.VERTEX_SHADER, `
+        precision mediump float;
+        attribute vec3 a_position;
+        attribute float a_size;
+        attribute vec3 a_color;
+        attribute float a_phase;
+        attribute float a_alpha;
+        uniform vec2 u_resolution;
+        uniform vec2 u_camera;
+        uniform float u_zoom;
+        uniform float u_time;
+        uniform float u_dpr;
+        varying vec3 v_color;
+        varying float v_alpha;
+        void main(){
+          float depth = mix(.16,1.0,a_position.z);
+          float drift = (1.0-a_position.z)*8.0;
+          vec2 motion = vec2(sin(u_time*.000035+a_phase),cos(u_time*.000028+a_phase))*drift;
+          vec2 point = ((a_position.xy+motion)-u_camera*depth)*u_zoom;
+          vec2 clip = point/(u_resolution*.5);
+          gl_Position = vec4(clip.x,-clip.y,0.0,1.0);
+          float pulse = .84+.16*sin(u_time*.0012+a_phase);
+          gl_PointSize = max(1.0,a_size*u_dpr*mix(.72,1.16,clamp(u_zoom,0.0,1.0))*pulse);
+          v_color = a_color;
+          v_alpha = a_alpha;
+        }`);
+      const fragment = makeShader(gl.FRAGMENT_SHADER, `
+        precision mediump float;
+        varying vec3 v_color;
+        varying float v_alpha;
+        void main(){
+          float distanceToCenter = distance(gl_PointCoord,vec2(.5));
+          float core = 1.0-smoothstep(.08,.5,distanceToCenter);
+          float halo = 1.0-smoothstep(.18,.5,distanceToCenter);
+          gl_FragColor = vec4(v_color,core*v_alpha+halo*v_alpha*.18);
+        }`);
+      if (!vertex || !fragment) { gl = null; fallback = canvas.getContext('2d', { alpha: true }); root.classList.add('is-canvas-fallback'); return; }
+      program = gl.createProgram();
+      gl.attachShader(program, vertex); gl.attachShader(program, fragment); gl.linkProgram(program);
+      gl.deleteShader(vertex); gl.deleteShader(fragment);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { gl.deleteProgram(program); gl = null; fallback = canvas.getContext('2d', { alpha: true }); root.classList.add('is-canvas-fallback'); return; }
+      gl.useProgram(program);
+      attributes = {
+        position: gl.getAttribLocation(program, 'a_position'), size: gl.getAttribLocation(program, 'a_size'),
+        color: gl.getAttribLocation(program, 'a_color'), phase: gl.getAttribLocation(program, 'a_phase'), alpha: gl.getAttribLocation(program, 'a_alpha')
+      };
+      uniforms = {
+        resolution: gl.getUniformLocation(program, 'u_resolution'), camera: gl.getUniformLocation(program, 'u_camera'),
+        zoom: gl.getUniformLocation(program, 'u_zoom'), time: gl.getUniformLocation(program, 'u_time'), dpr: gl.getUniformLocation(program, 'u_dpr')
+      };
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      gl.clearColor(0, 0, 0, 0);
+      root.classList.add('is-webgl');
+    };
+
+    const buildField = () => {
+      if (!gl || !program) return;
+      const mode = width < 760 ? 'mobile' : 'desktop';
+      if (fieldMode === mode && starBuffer) return;
+      fieldMode = mode;
+      const points = [];
+      const add = (x, y, depth, size, color, phase, alpha) => points.push(x, y, depth, size, color[0], color[1], color[2], phase, alpha);
+      const white = [.94, .92, .86], gold = [1, .79, .46], blue = [.46, .65, 1], rose = [1, .48, .68], violet = [.58, .45, 1];
+      const backgroundCount = mode === 'mobile' ? 780 : 1450;
+      const armCount = mode === 'mobile' ? 900 : 1750;
+      for (let index = 0; index < backgroundCount; index++) {
+        const tone = seeded(index + 71);
+        const color = tone > .94 ? rose : tone > .82 ? blue : tone > .72 ? gold : white;
+        add((seeded(index + 401) - .5) * 4100, (seeded(index + 811) - .5) * 2850, .12 + seeded(index + 1201) * .58, .65 + seeded(index + 1613) * 2.35, color, seeded(index + 2017) * 6.283, .18 + seeded(index + 2423) * .65);
+      }
+      for (let index = 0; index < armCount; index++) {
+        const progress = seeded(index + 3023);
+        const arm = index % 4;
+        const radius = 55 + Math.pow(progress, .72) * 1280;
+        const angle = progress * 10.8 + arm * Math.PI * .5 + (seeded(index + 3413) - .5) * (.18 + progress * .38) - .28;
+        const spread = (seeded(index + 3821) - .5) * (22 + progress * 145);
+        const x = Math.cos(angle) * radius + Math.cos(angle + Math.PI * .5) * spread;
+        const y = Math.sin(angle) * radius * .49 + Math.sin(angle + Math.PI * .5) * spread * .5;
+        const tone = seeded(index + 4211);
+        const color = tone > .83 ? gold : tone > .58 ? violet : tone > .36 ? blue : white;
+        add(x, y, .56 + seeded(index + 4637) * .42, .8 + (1 - progress) * 2.3 + seeded(index + 5011), color, seeded(index + 5413) * 6.283, .1 + (1 - progress) * .42 + seeded(index + 5813) * .22);
+      }
+      [[-980,-520,rose],[1020,-480,blue],[-920,640,violet],[980,680,gold]].forEach((cluster, clusterIndex) => {
+        const count = mode === 'mobile' ? 38 : 74;
+        for (let index = 0; index < count; index++) {
+          const angle = seeded(index + clusterIndex * 97 + 6203) * Math.PI * 2;
+          const distance = Math.pow(seeded(index + clusterIndex * 131 + 6607), .64) * 145;
+          add(cluster[0] + Math.cos(angle) * distance, cluster[1] + Math.sin(angle) * distance * .58, .78, .9 + seeded(index + 7001) * 2.1, cluster[2], angle, .16 + seeded(index + 7411) * .42);
+        }
+      });
+      starCount = points.length / 9;
+      if (starBuffer) gl.deleteBuffer(starBuffer);
+      starBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, starBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+      const stride = 9 * Float32Array.BYTES_PER_ELEMENT;
+      gl.enableVertexAttribArray(attributes.position); gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, stride, 0);
+      gl.enableVertexAttribArray(attributes.size); gl.vertexAttribPointer(attributes.size, 1, gl.FLOAT, false, stride, 3 * 4);
+      gl.enableVertexAttribArray(attributes.color); gl.vertexAttribPointer(attributes.color, 3, gl.FLOAT, false, stride, 4 * 4);
+      gl.enableVertexAttribArray(attributes.phase); gl.vertexAttribPointer(attributes.phase, 1, gl.FLOAT, false, stride, 7 * 4);
+      gl.enableVertexAttribArray(attributes.alpha); gl.vertexAttribPointer(attributes.alpha, 1, gl.FLOAT, false, stride, 8 * 4);
+    };
+
+    const drawFallback = () => {
+      if (!fallback) return;
+      fallback.clearRect(0, 0, width, height);
+      fallback.fillStyle = 'rgba(241,236,223,.55)';
+      const count = width < 760 ? 260 : 480;
+      for (let index = 0; index < count; index++) {
+        const x = seeded(index + 31) * width;
+        const y = seeded(index + 919) * height;
+        const size = .4 + seeded(index + 1411) * 1.35;
+        fallback.globalAlpha = .18 + seeded(index + 2111) * .6;
+        fallback.fillRect(x, y, size, size);
+      }
+      fallback.globalAlpha = 1;
+    };
+    const renderField = time => {
+      if (!gl || !program || !starBuffer) { drawFallback(); return; }
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(program);
+      gl.uniform2f(uniforms.resolution, width, height);
+      gl.uniform2f(uniforms.camera, camera.x, camera.y);
+      gl.uniform1f(uniforms.zoom, camera.zoom);
+      gl.uniform1f(uniforms.time, reducedMotion ? 0 : time);
+      gl.uniform1f(uniforms.dpr, ratio);
+      gl.drawArrays(gl.POINTS, 0, starCount);
+    };
+
+    const updateWorld = () => {
+      world.style.transform = `translate3d(${-camera.x * camera.zoom}px,${-camera.y * camera.zoom}px,0) scale(${camera.zoom})`;
+      root.style.setProperty('--galaxy-zoom', camera.zoom.toFixed(3));
+    };
     const updateCoordinate = () => {
       if (coordinate) coordinate.textContent = `X ${signed(camera.x)} / Y ${signed(camera.y)} / Z ${String(Math.round(camera.zoom * 100)).padStart(3, '0')}`;
     };
-
-    const makeField = () => {
-      const starCount = Math.min(220, Math.max(110, Math.round(width * height / 6400)));
-      stars = Array.from({ length: starCount }, (_, index) => ({
-        x: (seeded(index + 1) - .5) * width * 3.2,
-        y: (seeded(index + 411) - .5) * height * 3.2,
-        radius: .25 + seeded(index + 877) * 1.15,
-        alpha: .18 + seeded(index + 1211) * .65,
-        phase: seeded(index + 1601) * Math.PI * 2,
-        depth: .16 + seeded(index + 2003) * .62,
-        tone: seeded(index + 2401)
-      }));
-      dust = Array.from({ length: width < 760 ? 64 : 104 }, (_, index) => {
-        const progress = index / (width < 760 ? 64 : 104);
-        const arm = index % 3;
-        const angle = progress * Math.PI * 5.5 + arm * Math.PI * .66;
-        const radius = 72 + progress * 380;
-        return {
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius * .42,
-          radius: .3 + seeded(index + 3011) * 1.2,
-          alpha: .08 + (1 - progress) * .24
-        };
-      });
-    };
-
     const resize = () => {
       const bounds = root.getBoundingClientRect();
-      width = Math.max(320, Math.round(bounds.width));
-      height = Math.max(640, Math.round(bounds.height));
-      ratio = Math.min(window.devicePixelRatio || 1, width < 760 ? 1.25 : 1.5);
-      canvas.width = Math.round(width * ratio);
-      canvas.height = Math.round(height * ratio);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      if (!root.classList.contains('is-entered')) {
-        camera.zoom = camera.targetZoom = initialZoom();
-      }
-      makeField();
-      schedule();
+      const nextWidth = Math.max(320, Math.round(bounds.width));
+      const nextHeight = Math.max(610, Math.round(bounds.height));
+      if (width === nextWidth && height === nextHeight) return;
+      width = nextWidth; height = nextHeight;
+      ratio = Math.min(window.devicePixelRatio || 1, width < 760 ? 1 : 1.25);
+      canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+      canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+      if (fallback) fallback.setTransform(ratio, 0, 0, ratio, 0, 0);
+      if (!root.classList.contains('is-entered')) camera.zoom = camera.targetZoom = initialZoom();
+      buildField(); updateWorld(); renderField(performance.now());
     };
-
-    const drawOrbit = (planet, index) => {
-      const center = worldToScreen(0, 0);
-      const distance = Math.hypot(planet.x, planet.y) * camera.zoom;
-      context.save();
-      context.translate(center.x, center.y);
-      context.rotate((index - 1.5) * .08);
-      context.beginPath();
-      context.ellipse(0, 0, distance, distance * .47, 0, 0, Math.PI * 2);
-      context.strokeStyle = index === activePlanet && root.classList.contains('is-entered') ? 'rgba(243,206,145,.2)' : 'rgba(241,236,223,.075)';
-      context.lineWidth = 1;
-      if (context.setLineDash) context.setLineDash(index % 2 ? [3, 8] : []);
-      context.stroke();
-      if (context.setLineDash) context.setLineDash([]);
-      context.restore();
-    };
-
-    const drawCenter = time => {
-      const center = worldToScreen(0, 0);
-      const pulse = reducedMotion ? 1 : 1 + Math.sin(time * .0012) * .06;
-      const glow = context.createRadialGradient(center.x, center.y, 0, center.x, center.y, 125 * camera.zoom * pulse);
-      glow.addColorStop(0, 'rgba(255,239,198,.88)');
-      glow.addColorStop(.14, 'rgba(243,206,145,.34)');
-      glow.addColorStop(.55, 'rgba(130,112,220,.1)');
-      glow.addColorStop(1, 'rgba(130,112,220,0)');
-      context.fillStyle = glow;
-      context.beginPath();
-      context.arc(center.x, center.y, 125 * camera.zoom * pulse, 0, Math.PI * 2);
-      context.fill();
-      context.beginPath();
-      context.arc(center.x, center.y, Math.max(9, 18 * camera.zoom), 0, Math.PI * 2);
-      context.fillStyle = '#f7dfae';
-      context.shadowBlur = 22;
-      context.shadowColor = 'rgba(243,206,145,.75)';
-      context.fill();
-      context.shadowBlur = 0;
-      if (root.classList.contains('is-entered')) {
-        context.fillStyle = 'rgba(243,206,145,.72)';
-        context.font = '500 9px "Cascadia Mono", monospace';
-        context.textAlign = 'center';
-        context.fillText('HUAHUA / SYSTEM CORE', center.x, center.y + Math.max(30, 38 * camera.zoom));
-      }
-    };
-
-    const drawPlanet = (planet, index, time) => {
-      const point = worldToScreen(planet.x, planet.y);
-      const radius = Math.max(18, planet.radius * camera.zoom);
-      if (point.x < -radius * 3 || point.x > width + radius * 3 || point.y < -radius * 3 || point.y > height + radius * 3) return;
-      const selected = index === activePlanet && root.classList.contains('is-entered');
-      const pulse = reducedMotion ? 1 : 1 + Math.sin(time * .0015 + index) * .04;
-
-      context.save();
-      context.translate(point.x, point.y);
-      if (selected) {
-        context.beginPath();
-        context.arc(0, 0, radius * (1.38 + Math.sin(time * .002) * .05), 0, Math.PI * 2);
-        context.strokeStyle = 'rgba(243,206,145,.42)';
-        context.lineWidth = 1;
-        context.stroke();
-        context.beginPath();
-        context.arc(0, 0, radius * 1.62, 0, Math.PI * 2);
-        context.strokeStyle = 'rgba(241,236,223,.12)';
-        if (context.setLineDash) context.setLineDash([2, 7]);
-        context.stroke();
-        if (context.setLineDash) context.setLineDash([]);
-      }
-
-      const halo = context.createRadialGradient(0, 0, radius * .35, 0, 0, radius * 2.15);
-      halo.addColorStop(0, planet.glow);
-      halo.addColorStop(1, 'rgba(0,0,0,0)');
-      context.fillStyle = halo;
-      context.beginPath();
-      context.arc(0, 0, radius * 2.15, 0, Math.PI * 2);
-      context.fill();
-
-      if (planet.ring) {
-        context.save();
-        context.rotate(-.24);
-        context.beginPath();
-        context.ellipse(0, 0, radius * 1.72, radius * .48, 0, 0, Math.PI * 2);
-        context.strokeStyle = 'rgba(243,206,145,.5)';
-        context.lineWidth = Math.max(1.2, radius * .055);
-        context.stroke();
-        context.restore();
-      }
-
-      const sphere = context.createRadialGradient(-radius * .32, -radius * .38, radius * .08, 0, 0, radius * pulse);
-      sphere.addColorStop(0, planet.light);
-      sphere.addColorStop(.38, planet.color);
-      sphere.addColorStop(1, planet.dark);
-      context.beginPath();
-      context.arc(0, 0, radius * pulse, 0, Math.PI * 2);
-      context.fillStyle = sphere;
-      context.shadowBlur = selected ? 30 : 18;
-      context.shadowColor = planet.glow;
-      context.fill();
-      context.shadowBlur = 0;
-
-      context.save();
-      context.beginPath();
-      context.arc(0, 0, radius * pulse, 0, Math.PI * 2);
-      context.clip();
-      context.globalAlpha = .13;
-      for (let stripe = -2; stripe <= 2; stripe++) {
-        context.beginPath();
-        context.ellipse(radius * .16, stripe * radius * .25, radius * 1.05, radius * .18, -.16, 0, Math.PI * 2);
-        context.strokeStyle = stripe % 2 ? '#fff' : planet.dark;
-        context.lineWidth = Math.max(1, radius * .07);
-        context.stroke();
-      }
-      context.restore();
-
-      const moonAngle = time * (.00022 + index * .000035) + index * 1.6;
-      const moonX = Math.cos(moonAngle) * radius * 1.65;
-      const moonY = Math.sin(moonAngle) * radius * .72;
-      context.beginPath();
-      context.arc(moonX, moonY, Math.max(2.1, radius * .095), 0, Math.PI * 2);
-      context.fillStyle = index % 2 ? 'rgba(243,206,145,.9)' : 'rgba(220,225,255,.88)';
-      context.fill();
-      context.restore();
-
-      screenPlanets.push({ index, x: point.x, y: point.y, radius: radius * 1.3 });
-      if (root.classList.contains('is-entered')) {
-        context.fillStyle = selected ? 'rgba(243,206,145,.94)' : 'rgba(241,236,223,.56)';
-        context.font = selected ? '600 12px "Songti SC", serif' : '500 11px "Songti SC", serif';
-        context.textAlign = 'center';
-        context.fillText(`${planet.index} / ${planet.name}`, point.x, point.y + radius + 25);
-      }
-    };
-
-    const draw = time => {
-      camera.x += (camera.targetX - camera.x) * .075;
-      camera.y += (camera.targetY - camera.y) * .075;
-      camera.zoom += (camera.targetZoom - camera.zoom) * .07;
-      context.clearRect(0, 0, width, height);
-
-      for (const star of stars) {
-        const point = worldToScreen(star.x, star.y, star.depth);
-        if (point.x < -10 || point.x > width + 10 || point.y < -10 || point.y > height + 10) continue;
-        const shimmer = reducedMotion ? 1 : .68 + Math.sin(time * .0015 + star.phase) * .32;
-        context.beginPath();
-        context.arc(point.x, point.y, star.radius, 0, Math.PI * 2);
-        context.fillStyle = star.tone > .9 ? `rgba(243,206,145,${star.alpha * shimmer})` : star.tone > .8 ? `rgba(159,184,255,${star.alpha * shimmer})` : `rgba(241,236,223,${star.alpha * shimmer})`;
-        context.fill();
-      }
-
-      const center = worldToScreen(0, 0);
-      for (const particle of dust) {
-        const point = worldToScreen(particle.x, particle.y);
-        context.beginPath();
-        context.arc(point.x, point.y, particle.radius, 0, Math.PI * 2);
-        context.fillStyle = `rgba(185,174,255,${particle.alpha})`;
-        context.fill();
-      }
-      const coreGlow = context.createRadialGradient(center.x, center.y, 10, center.x, center.y, 420 * camera.zoom);
-      coreGlow.addColorStop(0, 'rgba(121,105,214,.09)');
-      coreGlow.addColorStop(1, 'rgba(121,105,214,0)');
-      context.fillStyle = coreGlow;
-      context.beginPath();
-      context.arc(center.x, center.y, 420 * camera.zoom, 0, Math.PI * 2);
-      context.fill();
-
-      planetData.forEach(drawOrbit);
-      drawCenter(time);
-      screenPlanets = [];
-      planetData.forEach((planet, index) => drawPlanet(planet, index, time));
-
-      if (coordinate && time - lastHudUpdate > 180) {
-        updateCoordinate();
-        lastHudUpdate = time;
-      }
-    };
-
-    const loop = time => {
-      animation = 0;
-      if (!visible || document.hidden) return;
-      const frameInterval = width < 760 ? 1000 / 30 : 1000 / 60;
-      if (time - lastFrame >= frameInterval) {
-        draw(time);
-        lastFrame = time;
-      }
-      animation = requestAnimationFrame(loop);
-    };
-    function schedule() {
-      if (reducedMotion) { draw(performance.now()); return; }
-      if (visible && !animation) animation = requestAnimationFrame(loop);
-    }
 
     const setEntered = entered => {
       root.classList.toggle('is-entered', entered);
@@ -568,96 +529,126 @@
       if (focusDescription) focusDescription.textContent = planet.description;
       if (focusLink) focusLink.href = `#${planet.id}`;
       dockButtons.forEach((button, itemIndex) => button.setAttribute('aria-pressed', String(itemIndex === index)));
+      worldPlanets.forEach((planetNode, itemIndex) => planetNode.classList.toggle('is-selected', itemIndex === index));
     };
     const selectPlanet = index => {
       const planet = planetData[index];
       if (!planet) return;
-      setEntered(true);
-      updateFocus(index);
-      camera.targetX = planet.x;
-      camera.targetY = planet.y;
-      camera.targetZoom = selectedZoom();
+      dragging = false; pointerId = null; canvas.classList.remove('is-dragging');
+      setEntered(true); updateFocus(index);
+      const horizontalOffset = width >= 900 ? width * .09 / planet.zoom : 0;
+      const verticalOffset = width < 900 ? 120 / planet.zoom : 0;
+      camera.targetX = clamp(planet.x + horizontalOffset, -1120, 1120);
+      camera.targetY = clamp(planet.y + verticalOffset, -820, 820);
+      camera.targetZoom = width < 560 ? Math.min(.92, planet.zoom) : planet.zoom;
+      camera.velocityX = camera.velocityY = 0;
       schedule();
     };
     const resetView = () => {
+      dragging = false; pointerId = null; canvas.classList.remove('is-dragging');
       setEntered(true);
-      camera.targetX = 0;
-      camera.targetY = 0;
-      camera.targetZoom = initialZoom();
+      camera.targetX = 0; camera.targetY = 0; camera.targetZoom = initialZoom();
+      camera.velocityX = camera.velocityY = 0;
       schedule();
     };
     const changeZoom = amount => {
       setEntered(true);
-      camera.targetZoom = Math.max(.42, Math.min(1.75, camera.targetZoom + amount));
+      camera.targetZoom = clamp(camera.targetZoom + amount, width < 560 ? .36 : .42, 1.45);
       schedule();
     };
 
-    enterButton?.addEventListener('click', () => { setEntered(true); resetView(); });
+    const loop = time => {
+      animation = 0;
+      if (!visible || document.hidden) return;
+      const interval = width < 760 ? 1000 / 30 : 1000 / 60;
+      if (time - lastFrame < interval) { animation = requestAnimationFrame(loop); return; }
+      lastFrame = time;
+      if (reducedMotion && !dragging) {
+        camera.x = camera.targetX;
+        camera.y = camera.targetY;
+        camera.zoom = camera.targetZoom;
+      } else if (!dragging) {
+        camera.x += (camera.targetX - camera.x) * .095;
+        camera.y += (camera.targetY - camera.y) * .095;
+      }
+      camera.zoom += (camera.targetZoom - camera.zoom) * .085;
+      if (Math.abs(camera.targetX - camera.x) < .02) camera.x = camera.targetX;
+      if (Math.abs(camera.targetY - camera.y) < .02) camera.y = camera.targetY;
+      if (Math.abs(camera.targetZoom - camera.zoom) < .0002) camera.zoom = camera.targetZoom;
+      updateWorld(); renderField(time);
+      if (time - lastHudUpdate > 140) { updateCoordinate(); lastHudUpdate = time; }
+      if (!reducedMotion) animation = requestAnimationFrame(loop);
+    };
+    function schedule() {
+      if (visible && !animation) animation = requestAnimationFrame(loop);
+      else if (!visible) { updateWorld(); renderField(performance.now()); }
+    }
+
+    enterButton?.addEventListener('click', resetView);
     $$('[data-enter-galaxy]').forEach(link => link.addEventListener('click', () => setEntered(true)));
     dockButtons.forEach((button, index) => button.addEventListener('click', () => selectPlanet(index)));
+    worldPlanets.forEach((planet, index) => planet.addEventListener('click', event => { event.stopPropagation(); selectPlanet(index); }));
     homeButton?.addEventListener('click', resetView);
-    $$('[data-galaxy-zoom]', root).forEach(button => button.addEventListener('click', () => changeZoom(button.dataset.galaxyZoom === 'in' ? .16 : -.16)));
+    $$('[data-galaxy-zoom]', root).forEach(button => button.addEventListener('click', () => changeZoom(button.dataset.galaxyZoom === 'in' ? .14 : -.14)));
 
     canvas.addEventListener('pointerdown', event => {
-      if (event.pointerType === 'touch' && Math.abs(event.movementY || 0) > Math.abs(event.movementX || 0)) return;
       setEntered(true);
-      dragging = true;
-      dragDistance = 0;
-      pointerId = event.pointerId;
-      pointerX = event.clientX;
-      pointerY = event.clientY;
-      canvas.classList.add('is-dragging');
-      canvas.setPointerCapture?.(event.pointerId);
+      dragging = true; dragDistance = 0; pointerId = event.pointerId;
+      pointerX = event.clientX; pointerY = event.clientY; pointerTime = performance.now();
+      camera.targetX = camera.x; camera.targetY = camera.y; camera.velocityX = camera.velocityY = 0;
+      canvas.classList.add('is-dragging'); canvas.setPointerCapture?.(event.pointerId);
     });
     canvas.addEventListener('pointermove', event => {
       if (!dragging || event.pointerId !== pointerId) return;
+      const now = performance.now();
       const deltaX = event.clientX - pointerX;
       const deltaY = event.clientY - pointerY;
+      const elapsed = Math.max(8, now - pointerTime);
       dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
-      pointerX = event.clientX;
-      pointerY = event.clientY;
-      camera.targetX = Math.max(-760, Math.min(760, camera.targetX - deltaX / camera.zoom));
-      camera.targetY = Math.max(-560, Math.min(560, camera.targetY - deltaY / camera.zoom));
-      camera.x = camera.targetX;
-      camera.y = camera.targetY;
-      updateCoordinate();
-      schedule();
+      pointerX = event.clientX; pointerY = event.clientY; pointerTime = now;
+      const worldX = -deltaX / camera.zoom;
+      const worldY = -deltaY / camera.zoom;
+      camera.x = camera.targetX = clamp(camera.x + worldX, -1120, 1120);
+      camera.y = camera.targetY = clamp(camera.y + worldY, -820, 820);
+      camera.velocityX = worldX * (16.67 / elapsed);
+      camera.velocityY = worldY * (16.67 / elapsed);
+      updateWorld(); updateCoordinate(); schedule();
     });
     const finishPointer = event => {
       if (!dragging || event.pointerId !== pointerId) return;
-      dragging = false;
-      canvas.classList.remove('is-dragging');
-      canvas.releasePointerCapture?.(event.pointerId);
-      if (dragDistance < 12) {
-        const bounds = canvas.getBoundingClientRect();
-        const x = event.clientX - bounds.left;
-        const y = event.clientY - bounds.top;
-        const hit = screenPlanets.find(item => Math.hypot(item.x - x, item.y - y) <= item.radius + 14);
-        if (hit) selectPlanet(hit.index);
+      dragging = false; pointerId = null;
+      canvas.classList.remove('is-dragging'); canvas.releasePointerCapture?.(event.pointerId);
+      if (dragDistance > 8) {
+        camera.targetX = clamp(camera.x + camera.velocityX * 13, -1120, 1120);
+        camera.targetY = clamp(camera.y + camera.velocityY * 13, -820, 820);
       }
-      pointerId = null;
+      schedule();
     };
     canvas.addEventListener('pointerup', finishPointer);
     canvas.addEventListener('pointercancel', finishPointer);
+    canvas.addEventListener('wheel', event => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      changeZoom(event.deltaY < 0 ? .1 : -.1);
+    }, { passive: false });
 
     root.addEventListener('keydown', event => {
-      const step = event.shiftKey ? 110 : 55;
-      if (event.key === 'ArrowLeft') camera.targetX -= step;
-      else if (event.key === 'ArrowRight') camera.targetX += step;
-      else if (event.key === 'ArrowUp') camera.targetY -= step;
-      else if (event.key === 'ArrowDown') camera.targetY += step;
-      else if (event.key === '+' || event.key === '=') changeZoom(.14);
-      else if (event.key === '-') changeZoom(-.14);
+      const step = event.shiftKey ? 130 : 65;
+      if (event.key === 'ArrowLeft') camera.targetX = clamp(camera.targetX - step, -1120, 1120);
+      else if (event.key === 'ArrowRight') camera.targetX = clamp(camera.targetX + step, -1120, 1120);
+      else if (event.key === 'ArrowUp') camera.targetY = clamp(camera.targetY - step, -820, 820);
+      else if (event.key === 'ArrowDown') camera.targetY = clamp(camera.targetY + step, -820, 820);
+      else if (event.key === '+' || event.key === '=') changeZoom(.12);
+      else if (event.key === '-') changeZoom(-.12);
       else if (event.key === '0') resetView();
       else return;
-      event.preventDefault();
-      setEntered(true);
-      schedule();
+      event.preventDefault(); setEntered(true); schedule();
     });
 
     if ('IntersectionObserver' in window) {
       const observer = new IntersectionObserver(entries => entries.forEach(entry => {
         visible = entry.isIntersecting;
+        document.body.classList.toggle('galaxy-active', visible);
         if (visible) schedule();
         else { cancelAnimationFrame(animation); animation = 0; }
       }), { threshold: .03 });
@@ -670,6 +661,7 @@
       else schedule();
     });
 
+    initRenderer();
     updateFocus(0);
     resize();
   }
